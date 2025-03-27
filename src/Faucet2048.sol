@@ -76,6 +76,12 @@ contract Faucet2048 is OwnableRoles {
     uint8 private constant RIGHT = 3;
 
     // =============================================================//
+    //                          IMMUTABLES                          //
+    // =============================================================//
+
+    uint8 public immutable WINNING_POWER;
+
+    // =============================================================//
     //                           STORAGE                            //
     // =============================================================//
 
@@ -105,7 +111,8 @@ contract Faucet2048 is OwnableRoles {
     // =============================================================//
 
     /// @notice Sets the owner and prize per win for the system.
-    constructor(address newOwner, uint256 prize) {
+    constructor(address newOwner, uint256 prize, uint8 winningPower) {
+        WINNING_POWER = winningPower;
         _setOwner(newOwner);
         prizePerWin = prize;
     }
@@ -248,7 +255,7 @@ contract Faucet2048 is OwnableRoles {
         bool isWinning = false;
         for (uint8 i = 0; i < 16; i++) {
             uint256 tile = Board.getTile(result, i);
-            if (tile > 10) {
+            if (tile >= WINNING_POWER) {
                 isWinning = true;
             }
             if (Board.getTile(result, i) == 0) {
