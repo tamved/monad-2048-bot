@@ -15,10 +15,10 @@ contract Faucet2048 is OwnableRoles {
     //                            ERRORS                            //
     // =============================================================//
 
-    /// @dev Emitted when an submitting an empty game.
-    error GameEmpty();
     /// @dev Emitted when the trying to play the game when it's paused.
     error GamePaused();
+    /// @dev Emitted when an submitting an invalid number of boards to start the game.
+    error GameInvalid();
     /// @dev Emitted when an identical solution is replayed.
     error GameReplayed();
     /// @dev Emitted when submitting an uncomitted secret along with the solution.
@@ -31,6 +31,7 @@ contract Faucet2048 is OwnableRoles {
     error StartBoardInvalid();
     /// @dev Emitted when a board transformation is incorrect.
     error BoardTransformInvalid();
+    error SessionReused();
     
     // =============================================================//
     //                            EVENT                             //
@@ -44,8 +45,11 @@ contract Faucet2048 is OwnableRoles {
     event Funded(uint256 amount);
     /// @dev Emitted when a new winning solution is successfully processed.
     event NewGameWin(address indexed player);
-    /// @dev Emitted when a new commitment is made.
-    event NewCommitment(address indexed player, bytes32 value);
+    /// @dev Emitted when a new game session is created.
+    event NewSession(address indexed player, bytes32 indexed id);
+    event NewGame(address indexed player, bytes32 indexed id, bytes32 gameHash);
+    event NewGameStart(address indexed player, bytes32 indexed id, uint256 board);
+    event NewMove();
 
     // =============================================================//
     //                          CONSTANTS                           //
@@ -69,9 +73,20 @@ contract Faucet2048 is OwnableRoles {
     
     /// @notice The amount of native token rewarded on submitting a winning solution.
     uint256 public prizePerWin;
+    
+    /// @notice Mapping from session to the current board state.
+    mapping (bytes32 sessionId => uint256 game) public game;
 
-    /// @notice Mapping from a commitment value to the player for whom the commitment is reserved.
-    mapping (bytes32 commitment => address player) public commitment;
+    /// @notice Mapping from hash of first 3 moves of the game to the player the position is reserved for.
+    mapping (bytes32 gameHash => address playee) public used;
+
+    /// @notice Mapping from session to the player the session is reserved for.
+    mapping (bytes32 sessionId => address player) public player;
+
+    /// @notice Mapping from sessionId => whether game is completed.
+    mapping(bytes32 sessionId => bool) public prizeDistributed;
+
+    mapping(bytes32 sessionId => bool) public noEmptySlots;
 
     // =============================================================//
     //                         CONSTRUCTOR                          //
@@ -103,46 +118,64 @@ contract Faucet2048 is OwnableRoles {
     }
 
     /**
-     * @notice Reserves a commitment value for the caller.    
-     * @param value The commitment to map to the caller address.
-     */
-    function commit(bytes32 value) external onlyUnpaused {
+     * @notice Creates a new game session for a player.
+     * @dev    The game session is created for the caller (msg.sender)
+     *         The id is meant to be the hash of a secret (used as a xor encryption/decryption key).
+     *
+     * @param id A unique, unused value treated as the ID for the session.
+     */    
+    function createSession(bytes32 id) external onlyUnpaused {
         // Check: the commitment is unused.
-        require(commitment[value] == address(0), CommitmentUsed());
+        require(player[id] == address(0), CommitmentUsed());
 
         // Map commitment value to caller.
-        address player = msg.sender;
-        commitment[value] = player;
+        address p = msg.sender;
+        player[id] = p;
 
-        emit NewCommitment(player, value);
+        emit NewSession(p, id);
+    }
+
+    function submitGame(bytes32 gameHash, bytes32 sessionId) external onlyUnpaused {
+        address caller = msg.sender;
+        
+        // Check: provided session is reserved for the caller player.
+        require(caller == player[sessionId], SecretInvalid());
+
+        // Check: the game is not being replayed.
+        require(used[gameHash] == address(0), GameReplayed());
+
+        // Mark game as used.
+        used[gameHash] = caller;
+
+        emit NewGame(caller, sessionId, gameHash);
     }
 
     /**
-     * @notice Evaulates whether a submitted game of 2048 is valid and winning and distributes prize.
-     * @param game The encrypted ordered array of board states of a completed 2048 game.
-     * @param secret The encryption/decryption key used to decrypt games.
+     * @notice Starts a game for a given session.
+     * @dev    The player is expected to send four game boards (start position + 3 moves) encrypted
+     *         using a secret, where `hash(secret)` is the sessionId.
+     * @param encryptedGame An encrypted, ordered array of game boards after three moves.
+     * @param secret The encryption/decryption key for the game.
      */
-    function evaluate(bytes calldata game, bytes calldata secret) external onlyUnpaused {
-        
-        // Check: provided secret is reserved for a player.
-        address player = commitment[keccak256(abi.encodePacked(secret))];
-        require(player != address(0), SecretInvalid());
+    function startGame(bytes calldata encryptedGame, bytes calldata secret) external onlyUnpaused {
+        address caller = msg.sender;
+        bytes32 sessionId = keccak256(abi.encodePacked(secret));
 
-        // Check: provided secret and game hash are commited for the same player.
-        require(commitment[keccak256(game)] == player, GameSecretMismatch());
+        // Check: provided session secret is reserved for the caller player.
+        require(caller == player[sessionId], SecretInvalid());
 
-        // Check: game is not being replayed.
-        bytes32 gameHash = keccak256(bytes.concat(secret, game));
-        require(commitment[gameHash] == address(0));
-
-        // Mark the game as played.
-        commitment[gameHash] = player;
+        // Check: the game for the session has not started.
+        require(game[sessionId] == 0, SessionReused());
 
         // Decrypt game.
-        uint256[] memory boards = abi.decode(encryptDecrypt(game, secret), (uint256[]));
-        
-        // Check: board is not empty.
-        require(boards.length > 0, GameEmpty());
+        uint256[] memory boards = abi.decode(encryptDecrypt(encryptedGame, secret), (uint256[]));
+
+        // Check: board is exactly 3 moves in.
+        require(boards.length == 4, GameInvalid());
+
+        // Check: the game has been submitted for the player.
+        bytes32 gameHash = keccak256(abi.encodePacked(boards));
+        require(used[gameHash] == caller, GameReplayed());
 
         // Check: the game is a valid game. Assume the boards are ordered.
         for(uint256 i = 0; i < boards.length; i++) {
@@ -153,13 +186,81 @@ contract Faucet2048 is OwnableRoles {
             _validateTransformation(boards[i-1], boards[i]);
         }
 
-        // If the game is winning, distribute prize.
-        if(_isWinning(boards[boards.length - 1])) {
-            SafeTransferLib.safeTransferETH(player, prizePerWin);
+        // Store final board.
+        game[sessionId] = boards[boards.length - 1];
+
+        emit NewGameStart(caller, sessionId, boards[boards.length - 1]);
+    }
+
+    function play(bytes32 sessionId, uint8 move) external onlyUnpaused returns (uint256 result) {
+        address caller = msg.sender;
+
+        // Check: provided session is reserved for the caller player.
+        require(caller == player[sessionId], SecretInvalid());
+
+        // Check: the game for the session has started.
+        uint256 board = game[sessionId];
+        require(board > 0, SessionReused());
+
+        // Check: the game has empty slots
+        require(!noEmptySlots[sessionId]);
+
+        // Check: the move is valid.
+        require(move < 4);
+
+        // Perform transformation on board to get resultant board.
+        if(move == UP) {
+            result = Board.processMoveUp(board);
+        } else if (move == DOWN) {
+            result = Board.processMoveDown(board);
+        } else if (move == RIGHT) {
+            result = Board.processMoveRight(board);
+        } else if (move == LEFT) {
+            result = Board.processMoveLeft(board);
         }
 
-        emit NewGameWin(player);
+        // Is the game is a winning one:
+        if(_isWinning(result) && !prizeDistributed[sessionId]) {
+            // Distribute prize.
+            SafeTransferLib.safeTransferETH(caller, prizePerWin);
+            prizeDistributed[sessionId] = true;
+        }
+        
+        // Count board empty tiles.
+        uint256 emptySlots = 0;
+        for(uint8 i = 0; i < 16; i++) {
+            if(Board.getTile(result, i) == 0) {
+                emptySlots++;
+            }    
+        }
+
+        if(emptySlots > 0) {
+            // Generate pseudo-random seed.
+            uint256 rseed = uint256(keccak256(abi.encodePacked(board, move, result, block.timestamp, address(this).balance)));
+
+            // Grab empty tiles indices
+            uint8[] memory emptyIndices = new uint8[](emptySlots);
+            uint256 idx = 0;
+            for(uint8 i = 0; i < 16; i++) {
+                if(Board.getTile(result, i) == 0) {
+                    emptyIndices[idx] = i;
+                    idx++;
+                }    
+            }
+
+            // Set a 2 (90% probability) or a 4 (10% probability) on the randomly chosen tile.
+            result = Board.setTile(result, emptyIndices[rseed % emptySlots], (rseed % 100) > 90 ? 4 : 2);
+        } else {
+            noEmptySlots[sessionId] = true;
+        }
+
+        // Store updated board.
+        game[sessionId] = result;
+
+        emit NewMove();
     }
+
+    
 
     /// @notice Lets an owner/admin pause or unpause the system.
     function setPause(bool isPaused) external onlyOwnerOrRoles(ADMIN_ROLE) {
