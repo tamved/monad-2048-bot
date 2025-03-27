@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Board} from "src/LibBoard.sol";
+import {OwnableRoles} from "lib/solady/src/auth/OwnableRoles.sol";
 import {SafeTransferLib} from "lib/solady/src/utils/SafeTransferLib.sol";
 
 /**
@@ -9,11 +10,12 @@ import {SafeTransferLib} from "lib/solady/src/utils/SafeTransferLib.sol";
  * @author Monad Foundation (github.com/monad-developers)
  * @notice A faucet that releases native tokens on the submission of a winning 2048 game.
  */
-contract Faucet2048 {
+contract Faucet2048 is OwnableRoles {
     // =============================================================//
     //                            ERRORS                            //
     // =============================================================//
 
+    error GamePaused();
     error GameInvalid();
     error GameReplayed();
     error SecretInvalid();    
@@ -30,10 +32,14 @@ contract Faucet2048 {
 
     event NewCommitment(address indexed player, bytes32 value);
     event NewGameWin(address indexed player);
+    event Paused(bool isPaused);
+    event Prize(uint256 prize);
 
     // =============================================================//
     //                          CONSTANTS                           //
     // =============================================================//
+
+    uint256 public constant ADMIN_ROLE = _ROLE_0;
 
     uint8 private constant UP = 0;
     uint8 private constant DOWN = 1;
@@ -44,19 +50,41 @@ contract Faucet2048 {
     //                           STORAGE                            //
     // =============================================================//
     
+    bool paused;
+    
     uint256 public prizePerWin;
 
     mapping (bytes32 commitment => address player) public commitment;
 
     // =============================================================//
+    //                         CONSTRUCTOR                          //
+    // =============================================================//
+
+    constructor(address newOwner, uint256 prize) {
+        _setOwner(newOwner);
+        prizePerWin = prize;
+    }
+
+    // =============================================================//
+    //                           RECEIVE                            //
+    // =============================================================//
+
+    receive() external payable {}
+
+    // =============================================================//
     //                           EXTERNAL                           //
     // =============================================================//
+
+    modifier onlyUnpaused() {
+        require(!paused, GamePaused());
+        _;
+    }
 
     /**
      * @notice Reserves a commitment value for the caller.    
      * @param value The commitment to map to the caller address.
      */
-    function commit(bytes32 value) external {
+    function commit(bytes32 value) external onlyUnpaused {
         // Check: the commitment is unused.
         require(commitment[value] == address(0), CommitmentUsed());
 
@@ -72,7 +100,7 @@ contract Faucet2048 {
      * @param game The encrypted ordered array of board states of a completed 2048 game.
      * @param secret The encryption/decryption key used to decrypt games.
      */
-    function evaluate(bytes calldata game, bytes calldata secret) external {
+    function evaluate(bytes calldata game, bytes calldata secret) external onlyUnpaused {
         
         // Check: provided secret is reserved for a player.
         address player = commitment[keccak256(abi.encodePacked(secret))];
@@ -105,10 +133,20 @@ contract Faucet2048 {
 
         // If the game is winning, distribute prize.
         if(_isWinning(boards[boards.length - 1])) {
-            _distributePrize(player);
+            SafeTransferLib.safeTransferETH(player, prizePerWin);
         }
 
         emit NewGameWin(player);
+    }
+
+    function setPause(bool isPaused) external onlyOwnerOrRoles(ADMIN_ROLE) {
+        paused = isPaused;
+        emit Paused(isPaused);
+    }
+
+    function setPrizePerWin(uint256 prize) external onlyOwnerOrRoles(ADMIN_ROLE) {
+        prizePerWin = prize;
+        emit Prize(prizePerWin);
     }
 
     // =============================================================//
@@ -221,9 +259,5 @@ contract Faucet2048 {
             }
         }
         return false;
-    }
-
-    function _distributePrize(address player) private {
-        SafeTransferLib.safeTransferETH(player, prizePerWin);
     }
 }
