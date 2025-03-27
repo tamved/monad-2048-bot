@@ -31,16 +31,6 @@ contract Faucet2048 is OwnableRoles {
     /// @dev Emitted when submitting a game to an invalid session.
     error SessionInvalid();
 
-    /// @dev Emitted when the start board position is an invalid 2048 start position.
-    error BoardStartInvalid();
-    /// @dev Emitted when a board transformation is incorrect.
-    error BoardTransformInvalid();
-
-    /// @dev Emitted when a board is encoded incorrectly.
-    error DirtyBits();
-    /// @dev Emitted when making a move that is invalid.
-    error MoveInvalid();
-
     // =============================================================//
     //                            EVENT                             //
     // =============================================================//
@@ -132,7 +122,7 @@ contract Faucet2048 is OwnableRoles {
 
     /// @dev Updates global seed.
     modifier updateSeed() {
-        seed = keccak256(abi.encodePacked(block.number, seed));
+        seed = keccak256(abi.encodePacked(block.number, address(this).balance, seed));
         _;
     }
 
@@ -211,10 +201,10 @@ contract Faucet2048 is OwnableRoles {
         // Check: the game is a valid game. Assume the boards are ordered.
         for (uint256 i = 0; i < boards.length; i++) {
             if (i == 0) {
-                _validateStartPosition(boards[i]);
+                Board.validateStartPosition(boards[i]);
                 continue;
             }
-            _validateTransformation(boards[i - 1], boards[i]);
+            Board.validateTransformation(boards[i - 1], boards[i]);
         }
 
         // Store final board.
@@ -233,62 +223,17 @@ contract Faucet2048 is OwnableRoles {
         uint256 board = latestBoard[sessionId];
         require(board > 0, GameNotStarted());
 
-        // Check: the move is valid.
-        require(move < 4, MoveInvalid());
-
-        // Perform transformation on board to get resultant board.
-        if (move == UP) {
-            result = Board.processMoveUp(board);
-        } else if (move == DOWN) {
-            result = Board.processMoveDown(board);
-        } else if (move == RIGHT) {
-            result = Board.processMoveRight(board);
-        } else if (move == LEFT) {
-            result = Board.processMoveLeft(board);
-        }
-
-        // Check: the move is playable.
-        require((board << 128) != (result << 128), MoveInvalid());
-
-        // Count board empty tiles and whether any tile is winning.
-        uint256 emptySlots = 0;
-        bool isWinning = false;
-        for (uint8 i = 0; i < 16; i++) {
-            uint256 tile = Board.getTile(result, i);
-            if (tile >= WINNING_POWER) {
-                isWinning = true;
-            }
-            if (Board.getTile(result, i) == 0) {
-                emptySlots++;
-            }
-        }
+        // Process move.
+        result = Board.processMove(board, move, seed);
 
         // If the game is a winning one:
-        if (isWinning && !prizeDistributed[sessionId]) {
+        if (Board.isWinningBoard(result, WINNING_POWER) && !prizeDistributed[sessionId]) {
             // Distribute prize.
             SafeTransferLib.safeTransferETH(player, prizePerWin);
             // Mark prize as distributed.
             prizeDistributed[sessionId] = true;
 
             emit NewGameWin(player, sessionId);
-        }
-
-        if (emptySlots > 0) {
-            // Generate pseudo-random seed.
-            uint256 rseed = uint256(keccak256(abi.encodePacked(board, move, result, seed, address(this).balance)));
-
-            // Grab empty tiles indices
-            uint8[] memory emptyIndices = new uint8[](emptySlots);
-            uint256 idx = 0;
-            for (uint8 i = 0; i < 16; i++) {
-                if (Board.getTile(result, i) == 0) {
-                    emptyIndices[idx] = i;
-                    idx++;
-                }
-            }
-
-            // Set a 2 (90% probability) or a 4 (10% probability) on the randomly chosen tile.
-            result = Board.setTile(result, emptyIndices[rseed % emptySlots], (rseed % 100) > 90 ? 4 : 2);
         }
 
         // Store updated board.
@@ -356,63 +301,5 @@ contract Faucet2048 is OwnableRoles {
                 mstore(add(result, add(i, 32)), chunk)
             }
         }
-    }
-
-    // =============================================================//
-    //                           PRIVATE                            //
-    // =============================================================//
-
-    /// @dev Validates that the given board is a valid starting position of 2048.
-    function _validateStartPosition(uint256 board) private pure {
-        require(((board << 8) >> 136) == 0, DirtyBits());
-
-        uint256 count;
-        for (uint8 i = 0; i < 16; i++) {
-            // Get value at tile.
-            uint8 pow = Board.getTile(board, i);
-            // Check: tile value is less than 2^3.
-            require(pow < 3, BoardStartInvalid());
-            // Update tile count.
-            if (pow > 0) count++;
-        }
-        require(count == 2, BoardStartInvalid());
-    }
-
-    /// @dev Validates that next board is a result of a valid transformation on previous board.
-    function _validateTransformation(uint256 prevBoard, uint256 nextBoard) private pure {
-        require(((prevBoard << 8) >> 136) == 0, DirtyBits());
-        require(((nextBoard << 8) >> 136) == 0, DirtyBits());
-
-        uint256 result;
-        uint8 move = Board.getMove(nextBoard);
-
-        if (move == UP) {
-            result = Board.processMoveUp(prevBoard);
-        } else if (move == DOWN) {
-            result = Board.processMoveDown(prevBoard);
-        } else if (move == RIGHT) {
-            result = Board.processMoveRight(prevBoard);
-        } else if (move == LEFT) {
-            result = Board.processMoveLeft(prevBoard);
-        }
-
-        uint8 mismatchPosition = 0;
-        uint8 mismatchCount = 0;
-
-        for (uint8 i = 0; i < 16; i++) {
-            uint256 tile = Board.getTile(result, i);
-
-            if (tile != Board.getTile(nextBoard, i)) {
-                mismatchCount++;
-                mismatchPosition = i;
-            }
-        }
-
-        uint256 mismatchTile = Board.getTile(result, mismatchPosition);
-        require(
-            Board.getTile(nextBoard, mismatchPosition) == 0 && mismatchTile > 0 && mismatchTile < 3
-                && mismatchCount == 1,
-            BoardTransformInvalid()
-        );
     }
 }
