@@ -80,7 +80,7 @@ contract LibBoardTest is Test {
          * [2,1,3,2]
          * [0,1,3,2]
          */
-        uint8[16] memory board = [0, 0, 1, 1, 0, 0, 2, 4, 2, 1, 3, 2, 0, 1, 3, 2];
+        uint8[16] memory board = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0];
 
         /**
          * [1,0,0,0]
@@ -88,7 +88,7 @@ contract LibBoardTest is Test {
          * [0,0,2,4]
          * [2,2,4,3]
          */
-        uint8[16] memory expectedResultDown = [1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 4, 2, 2, 4, 3];
+        uint8[16] memory expectedResultDown = [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0];
 
         uint256 resultWithMove = boardArrayToBits(expectedResultDown) | (0x01 << 248);
 

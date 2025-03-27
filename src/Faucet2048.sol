@@ -44,13 +44,11 @@ contract Faucet2048 is OwnableRoles {
     /// @dev Emitted when a new winning solution is successfully processed.
     event NewGameWin(address indexed player, bytes32 indexed id);
     /// @dev Emitted when a new game session is created.
-    event NewSession(address indexed player, bytes32 indexed id);
-    /// @dev Emitted when a game is reserved for a session.
-    event NewGame(address indexed player, bytes32 indexed id, bytes32 gameHash);
+    event NewSession(address indexed player, bytes32 indexed id, bytes32 gameHash);
     /// @dev Emitted when a game is started.
     event NewGameStart(address indexed player, bytes32 indexed id, uint256 board);
     /// @dev Emitted when a new valid move is played.
-    event NewMove(address indexed player, bytes32 indexed id, uint8 move, uint256 result);
+    event NewMove(address indexed player, bytes32 indexed id, uint256 move, uint256 result);
 
     // =============================================================//
     //                          CONSTANTS                           //
@@ -135,61 +133,42 @@ contract Faucet2048 is OwnableRoles {
     /**
      * @notice Creates a new game session for a player.
      * @dev    The game session is created for the caller (msg.sender).
-     *         The id is meant to be the hash of a secret (used as a xor encryption/decryption key).
-     *
-     * @param id A unique, unused value treated as the ID for the session.
-     */
-    function createSession(bytes32 id) external onlyUnpaused updateSeed {
-        // Check: the session ID is unused.
-        require(sessionFor[id] == address(0), SessionUsed());
-
-        // Map the session to the player.
-        address player = msg.sender;
-        sessionFor[id] = player;
-
-        emit NewSession(player, id);
-    }
-
-    /**
-     * @notice Reserve a game hash (i.e. hash of the first 3 moves of a game) for a session.
      *
      * @param gameHash The hash of the first three moves of the game.
-     * @param sessionId The unique ID of the session.
      */
-    function submitGame(bytes32 gameHash, bytes32 sessionId) external onlyUnpaused updateSeed {
+    function createSession(bytes32 sessionId, bytes32 gameHash) external onlyUnpaused updateSeed {
         address player = msg.sender;
-
-        // Check: provided session is reserved for the player.
-        require(player == sessionFor[sessionId], SessionInvalid());
 
         // Check: the game is not being replayed.
         require(gameFor[gameHash] == bytes32(0), GameUsed());
 
+        // Check: provided session is reserved for the player.
+        require(sessionFor[sessionId] == address(0), SessionUsed());
+
+        // Map the session to the player.
+        sessionFor[sessionId] = player;
+
         // Reserve the game for the session.
         gameFor[gameHash] = sessionId;
 
-        emit NewGame(player, sessionId, gameHash);
+        emit NewSession(player, sessionId, gameHash);
     }
 
     /**
      * @notice Starts a game for a given session.
      * @dev    The player is expected to send four game boards (start position + 3 moves) encrypted
      *         using a secret, where `hash(secret)` is the sessionId.
-     * @param encryptedGame An encrypted, ordered array of game boards after three moves.
-     * @param secret The encryption/decryption key for the game.
+     * @param boards An ordered array of game boards after three moves.
+     * @param sessionId The unique session id associated with the hash of the provided boards.
      */
-    function startGame(bytes calldata encryptedGame, bytes calldata secret) external onlyUnpaused updateSeed {
+    function startGame(bytes32 sessionId, uint256[] calldata boards) external onlyUnpaused updateSeed {
         address player = msg.sender;
-        bytes32 sessionId = keccak256(abi.encodePacked(secret));
 
         // Check: provided session is reserved for the player.
         require(player == sessionFor[sessionId], SessionInvalid());
 
         // Check: the game for the session has not started.
         require(latestBoard[sessionId] == 0, GameStarted());
-
-        // Decrypt game.
-        uint256[] memory boards = abi.decode(encryptDecrypt(encryptedGame, secret), (uint256[]));
 
         // Check: board is exactly 3 moves in.
         require(boards.length == 4, GameInvalid());
@@ -213,7 +192,7 @@ contract Faucet2048 is OwnableRoles {
         emit NewGameStart(player, sessionId, boards[boards.length - 1]);
     }
 
-    function play(bytes32 sessionId, uint8 move) external onlyUnpaused updateSeed returns (uint256 result) {
+    function play(bytes32 sessionId, uint256 move) external onlyUnpaused updateSeed returns (uint256 result) {
         address player = msg.sender;
 
         // Check: provided session is reserved for the player.
@@ -252,54 +231,5 @@ contract Faucet2048 is OwnableRoles {
     function setPrizePerWin(uint256 prize) external onlyOwnerOrRoles(ADMIN_ROLE) {
         prizePerWin = prize;
         emit Prize(prizePerWin);
-    }
-
-    // =============================================================//
-    //                            PUBLIC                            //
-    // =============================================================//
-
-    /**
-     *  @notice         Two-way encryption. Encrypt/decrypt data on chain via the same key.
-     *  @dev            See: https://ethereum.stackexchange.com/questions/69825/decrypt-message-on-chain
-     *
-     *
-     *  @param data     Bytes of data to encrypt/decrypt.
-     *  @param key      Secure key used by caller for encryption/decryption.
-     *
-     *  @return result  Output after encryption/decryption of given data.
-     */
-    function encryptDecrypt(bytes memory data, bytes calldata key) public pure returns (bytes memory result) {
-        // Store data length on stack for later use
-        uint256 length = data.length;
-
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            // Set result to free memory pointer
-            result := mload(0x40)
-            // Increase free memory pointer by lenght + 32
-            mstore(0x40, add(add(result, length), 32))
-            // Set result length
-            mstore(result, length)
-        }
-
-        // Iterate over the data stepping by 32 bytes
-        for (uint256 i = 0; i < length; i += 32) {
-            // Generate hash of the key and offset
-            bytes32 hash = keccak256(abi.encodePacked(key, i));
-
-            bytes32 chunk;
-            // solhint-disable-next-line no-inline-assembly
-            assembly {
-                // Read 32-bytes data chunk
-                chunk := mload(add(data, add(i, 32)))
-            }
-            // XOR the chunk with hash
-            chunk ^= hash;
-            // solhint-disable-next-line no-inline-assembly
-            assembly {
-                // Write 32-byte encrypted chunk
-                mstore(add(result, add(i, 32)), chunk)
-            }
-        }
     }
 }

@@ -15,10 +15,10 @@ library Board {
     //                          CONSTANTS                           //
     // =============================================================//
 
-    uint8 public constant UP = 0;
-    uint8 public constant DOWN = 1;
-    uint8 public constant LEFT = 2;
-    uint8 public constant RIGHT = 3;
+    uint256 public constant UP = 0;
+    uint256 public constant DOWN = 1;
+    uint256 public constant LEFT = 2;
+    uint256 public constant RIGHT = 3;
 
     // =============================================================//
     //                             GET                              //
@@ -95,7 +95,7 @@ library Board {
     //                        TRANSFORMATIONS                       //
     // =============================================================//
 
-    function processMove(uint256 board, uint8 move, bytes32 seed) public pure returns (uint256 result) {
+    function processMove(uint256 board, uint256 move, bytes32 seed) public pure returns (uint256 result) {
         // Check: the move is valid.
         require(move < 4, MoveInvalid());
 
