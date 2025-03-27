@@ -15,32 +15,46 @@ contract Faucet2048 is OwnableRoles {
     //                            ERRORS                            //
     // =============================================================//
 
+    /// @dev Emitted when an submitting an empty game.
+    error GameEmpty();
+    /// @dev Emitted when the trying to play the game when it's paused.
     error GamePaused();
-    error GameInvalid();
+    /// @dev Emitted when an identical solution is replayed.
     error GameReplayed();
-    error SecretInvalid();    
+    /// @dev Emitted when submitting an uncomitted secret along with the solution.
+    error SecretInvalid();
+    /// @dev Emitted when submitting a used commitment.
     error CommitmentUsed();
+    /// @dev Emitted when submitting a solution with incorrect secret.
     error GameSecretMismatch();
-
+    /// @dev Emitted when the start board position is an invalid 2048 start position.
     error StartBoardInvalid();
+    /// @dev Emitted when a board transformation is incorrect.
     error BoardTransformInvalid();
-    
     
     // =============================================================//
     //                            EVENT                             //
     // =============================================================//
 
-    event NewCommitment(address indexed player, bytes32 value);
-    event NewGameWin(address indexed player);
-    event Paused(bool isPaused);
+    /// @dev Emitted when a new prize-per-win is set.
     event Prize(uint256 prize);
+    /// @dev Emitted when a system is paused/unpaused.
+    event Paused(bool isPaused);
+    /// @dev Emitted when the faucet is funded.
+    event Funded(uint256 amount);
+    /// @dev Emitted when a new winning solution is successfully processed.
+    event NewGameWin(address indexed player);
+    /// @dev Emitted when a new commitment is made.
+    event NewCommitment(address indexed player, bytes32 value);
 
     // =============================================================//
     //                          CONSTANTS                           //
     // =============================================================//
 
+    /// @notice Admin role holders can pause/unpause the system and update prize amount per win.
     uint256 public constant ADMIN_ROLE = _ROLE_0;
 
+    /// @dev The four possible moves in 2048.
     uint8 private constant UP = 0;
     uint8 private constant DOWN = 1;
     uint8 private constant LEFT = 2;
@@ -50,16 +64,20 @@ contract Faucet2048 is OwnableRoles {
     //                           STORAGE                            //
     // =============================================================//
     
+    /// @notice Whether the system is paused.
     bool paused;
     
+    /// @notice The amount of native token rewarded on submitting a winning solution.
     uint256 public prizePerWin;
 
+    /// @notice Mapping from a commitment value to the player for whom the commitment is reserved.
     mapping (bytes32 commitment => address player) public commitment;
 
     // =============================================================//
     //                         CONSTRUCTOR                          //
     // =============================================================//
 
+    /// @notice Sets the owner and prize per win for the system.
     constructor(address newOwner, uint256 prize) {
         _setOwner(newOwner);
         prizePerWin = prize;
@@ -69,12 +87,16 @@ contract Faucet2048 is OwnableRoles {
     //                           RECEIVE                            //
     // =============================================================//
 
-    receive() external payable {}
+    /// @notice Lets anyone fund the faucet with native tokens.
+    receive() external payable {
+        emit Funded(msg.value);
+    }
 
     // =============================================================//
     //                           EXTERNAL                           //
     // =============================================================//
 
+    /// @dev Reverts if the system is paused.
     modifier onlyUnpaused() {
         require(!paused, GamePaused());
         _;
@@ -120,7 +142,7 @@ contract Faucet2048 is OwnableRoles {
         uint256[] memory boards = abi.decode(encryptDecrypt(game, secret), (uint256[]));
         
         // Check: board is not empty.
-        require(boards.length > 0, GameInvalid());
+        require(boards.length > 0, GameEmpty());
 
         // Check: the game is a valid game. Assume the boards are ordered.
         for(uint256 i = 0; i < boards.length; i++) {
@@ -139,11 +161,13 @@ contract Faucet2048 is OwnableRoles {
         emit NewGameWin(player);
     }
 
+    /// @notice Lets an owner/admin pause or unpause the system.
     function setPause(bool isPaused) external onlyOwnerOrRoles(ADMIN_ROLE) {
         paused = isPaused;
         emit Paused(isPaused);
     }
 
+    /// @notice Lets an owner/admin update the prize per win.
     function setPrizePerWin(uint256 prize) external onlyOwnerOrRoles(ADMIN_ROLE) {
         prizePerWin = prize;
         emit Prize(prizePerWin);
@@ -202,6 +226,7 @@ contract Faucet2048 is OwnableRoles {
     //                           PRIVATE                            //
     // =============================================================//
     
+    /// @dev Validates that the given board is a valid starting position of 2048.
     function _validateStartPosition(uint256 board) private pure {
         uint256 count;
         for(uint8 i = 0; i < 16; i++) {
@@ -215,6 +240,7 @@ contract Faucet2048 is OwnableRoles {
         require(count == 2, StartBoardInvalid());
     }
 
+    /// @dev Validates that next board is a result of a valid transformation on previous board.
     function _validateTransformation(uint256 prevBoard, uint256 nextBoard) private pure {
         uint256 result;
         uint8 move = Board.getMove(nextBoard);
@@ -251,6 +277,7 @@ contract Faucet2048 is OwnableRoles {
         );
     }
 
+    /// @dev Returns whether a board is a winning board.
     function _isWinning(uint256 board) private pure returns (bool) {
         for(uint8 i = 0; i < 16; i += 8) {
             uint256 tile = Board.getTile(board, i);
