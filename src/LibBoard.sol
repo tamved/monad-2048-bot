@@ -2,7 +2,6 @@
 pragma solidity ^0.8.28;
 
 library Board {
-
     // =============================================================//
     //                            ERRORS                            //
     // =============================================================//
@@ -52,7 +51,7 @@ library Board {
             if (pow > 0) count++;
         }
         require(count == 2, BoardStartInvalid());
-        
+
         return true;
     }
 
@@ -85,8 +84,7 @@ library Board {
         uint256 mismatchTile = getTile(nextBoard, mismatchPosition);
 
         require(
-            getTile(result, mismatchPosition) == 0 && mismatchTile > 0 && mismatchTile < 3
-                && mismatchCount == 1,
+            getTile(result, mismatchPosition) == 0 && mismatchTile > 0 && mismatchTile < 3 && mismatchCount == 1,
             BoardTransformInvalid()
         );
 
@@ -101,7 +99,7 @@ library Board {
         // Check: the move is valid.
         require(move < 4, MoveInvalid());
 
-        // Perform transformation on board to get resultant 
+        // Perform transformation on board to get resultant
         if (move == UP) {
             result = processMoveUp(board);
         } else if (move == DOWN) {
@@ -122,7 +120,7 @@ library Board {
             }
         }
 
-        if(emptySlots > 0) {
+        if (emptySlots > 0) {
             // Generate pseudo-random seed.
             uint256 rseed = uint256(keccak256(abi.encodePacked(board, move, result, seed)));
             uint8[] memory emptyIndices = new uint8[](emptySlots);

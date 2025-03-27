@@ -6,7 +6,6 @@ import {Faucet2048} from "src/Faucet2048.sol";
 import {Board} from "src/LibBoard.sol";
 
 contract Faucet2048Test is Test {
-
     Faucet2048 internal faucet;
 
     address owner;
@@ -14,9 +13,8 @@ contract Faucet2048Test is Test {
     address player;
 
     uint256 prizeAmount = 0.1 ether;
-    
-    function setUp() public {
 
+    function setUp() public {
         owner = makeAddr("Owner");
         admin = makeAddr("Admin");
         player = makeAddr("Player");
