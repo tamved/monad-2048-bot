@@ -25,12 +25,12 @@ contract Faucet2048 is OwnableRoles {
     error GameStarted();
     /// @dev Emitted when playing a game for a session whose game has not started.
     error GameNotStarted();
-    
+
     /// @dev Emitted when creating a session with a used session ID.
     error SessionUsed();
     /// @dev Emitted when submitting a game to an invalid session.
     error SessionInvalid();
-    
+
     /// @dev Emitted when the start board position is an invalid 2048 start position.
     error BoardStartInvalid();
     /// @dev Emitted when a board transformation is incorrect.
@@ -40,7 +40,7 @@ contract Faucet2048 is OwnableRoles {
     error DirtyBits();
     /// @dev Emitted when making a move that is invalid.
     error MoveInvalid();
-    
+
     // =============================================================//
     //                            EVENT                             //
     // =============================================================//
@@ -84,21 +84,21 @@ contract Faucet2048 is OwnableRoles {
 
     /// @notice Seed used for randomness.
     bytes32 private seed = bytes32("2048");
-    
+
     /// @notice The amount of native token rewarded on submitting a winning solution.
     uint256 public prizePerWin;
 
     /// @notice Mapping from hash of first 3 moves of a game to the session it is reserved for.
-    mapping (bytes32 gameHash => bytes32 sessionId) public gameFor;
+    mapping(bytes32 gameHash => bytes32 sessionId) public gameFor;
 
     /// @notice Mapping from session to the latest board state.
-    mapping (bytes32 sessionId => uint256 board) public latestBoard;
-    
+    mapping(bytes32 sessionId => uint256 board) public latestBoard;
+
     /// @notice Mapping from session ID to the player the session is reserved for.
-    mapping (bytes32 sessionId => address player) public sessionFor;
+    mapping(bytes32 sessionId => address player) public sessionFor;
 
     /// @notice Mapping from sessionId => whether the prize has been distributed for the session.
-    mapping (bytes32 sessionId => bool distributed) public prizeDistributed;
+    mapping(bytes32 sessionId => bool distributed) public prizeDistributed;
 
     // =============================================================//
     //                         CONSTRUCTOR                          //
@@ -141,7 +141,7 @@ contract Faucet2048 is OwnableRoles {
      *         The id is meant to be the hash of a secret (used as a xor encryption/decryption key).
      *
      * @param id A unique, unused value treated as the ID for the session.
-     */    
+     */
     function createSession(bytes32 id) external onlyUnpaused updateSeed {
         // Check: the session ID is unused.
         require(sessionFor[id] == address(0), SessionUsed());
@@ -155,13 +155,13 @@ contract Faucet2048 is OwnableRoles {
 
     /**
      * @notice Reserve a game hash (i.e. hash of the first 3 moves of a game) for a session.
-     * 
+     *
      * @param gameHash The hash of the first three moves of the game.
      * @param sessionId The unique ID of the session.
      */
     function submitGame(bytes32 gameHash, bytes32 sessionId) external onlyUnpaused updateSeed {
         address player = msg.sender;
-        
+
         // Check: provided session is reserved for the player.
         require(player == sessionFor[sessionId], SessionInvalid());
 
@@ -202,12 +202,12 @@ contract Faucet2048 is OwnableRoles {
         require(gameFor[gameHash] == sessionId, GameInvalid());
 
         // Check: the game is a valid game. Assume the boards are ordered.
-        for(uint256 i = 0; i < boards.length; i++) {
-            if(i == 0) {
+        for (uint256 i = 0; i < boards.length; i++) {
+            if (i == 0) {
                 _validateStartPosition(boards[i]);
                 continue;
             }
-            _validateTransformation(boards[i-1], boards[i]);
+            _validateTransformation(boards[i - 1], boards[i]);
         }
 
         // Store final board.
@@ -230,7 +230,7 @@ contract Faucet2048 is OwnableRoles {
         require(move < 4, MoveInvalid());
 
         // Perform transformation on board to get resultant board.
-        if(move == UP) {
+        if (move == UP) {
             result = Board.processMoveUp(board);
         } else if (move == DOWN) {
             result = Board.processMoveDown(board);
@@ -246,18 +246,18 @@ contract Faucet2048 is OwnableRoles {
         // Count board empty tiles and whether any tile is winning.
         uint256 emptySlots = 0;
         bool isWinning = false;
-        for(uint8 i = 0; i < 16; i++) {
+        for (uint8 i = 0; i < 16; i++) {
             uint256 tile = Board.getTile(result, i);
-            if(tile > 10) {
+            if (tile > 10) {
                 isWinning = true;
             }
-            if(Board.getTile(result, i) == 0) {
+            if (Board.getTile(result, i) == 0) {
                 emptySlots++;
-            }    
+            }
         }
 
         // If the game is a winning one:
-        if(isWinning && !prizeDistributed[sessionId]) {
+        if (isWinning && !prizeDistributed[sessionId]) {
             // Distribute prize.
             SafeTransferLib.safeTransferETH(player, prizePerWin);
             // Mark prize as distributed.
@@ -266,18 +266,18 @@ contract Faucet2048 is OwnableRoles {
             emit NewGameWin(player, sessionId);
         }
 
-        if(emptySlots > 0) {
+        if (emptySlots > 0) {
             // Generate pseudo-random seed.
             uint256 rseed = uint256(keccak256(abi.encodePacked(board, move, result, seed, address(this).balance)));
 
             // Grab empty tiles indices
             uint8[] memory emptyIndices = new uint8[](emptySlots);
             uint256 idx = 0;
-            for(uint8 i = 0; i < 16; i++) {
-                if(Board.getTile(result, i) == 0) {
+            for (uint8 i = 0; i < 16; i++) {
+                if (Board.getTile(result, i) == 0) {
                     emptyIndices[idx] = i;
                     idx++;
-                }    
+                }
             }
 
             // Set a 2 (90% probability) or a 4 (10% probability) on the randomly chosen tile.
@@ -309,7 +309,7 @@ contract Faucet2048 is OwnableRoles {
     /**
      *  @notice         Two-way encryption. Encrypt/decrypt data on chain via the same key.
      *  @dev            See: https://ethereum.stackexchange.com/questions/69825/decrypt-message-on-chain
-     *                  
+     *
      *
      *  @param data     Bytes of data to encrypt/decrypt.
      *  @param key      Secure key used by caller for encryption/decryption.
@@ -354,16 +354,16 @@ contract Faucet2048 is OwnableRoles {
     // =============================================================//
     //                           PRIVATE                            //
     // =============================================================//
-    
+
     /// @dev Validates that the given board is a valid starting position of 2048.
     function _validateStartPosition(uint256 board) private pure {
         require(((board << 8) >> 136) == 0, DirtyBits());
 
         uint256 count;
-        for(uint8 i = 0; i < 16; i++) {
+        for (uint8 i = 0; i < 16; i++) {
             // Get value at tile.
             uint8 pow = Board.getTile(board, i);
-            // Check: tile value is less than 2^3. 
+            // Check: tile value is less than 2^3.
             require(pow < 3, BoardStartInvalid());
             // Update tile count.
             if (pow > 0) count++;
@@ -379,7 +379,7 @@ contract Faucet2048 is OwnableRoles {
         uint256 result;
         uint8 move = Board.getMove(nextBoard);
 
-        if(move == UP) {
+        if (move == UP) {
             result = Board.processMoveUp(prevBoard);
         } else if (move == DOWN) {
             result = Board.processMoveDown(prevBoard);
@@ -392,10 +392,10 @@ contract Faucet2048 is OwnableRoles {
         uint8 mismatchPosition = 0;
         uint8 mismatchCount = 0;
 
-        for(uint8 i = 0; i < 16; i++) {
+        for (uint8 i = 0; i < 16; i++) {
             uint256 tile = Board.getTile(result, i);
 
-            if(tile != Board.getTile(nextBoard, i)) {
+            if (tile != Board.getTile(nextBoard, i)) {
                 mismatchCount++;
                 mismatchPosition = i;
             }
@@ -403,9 +403,7 @@ contract Faucet2048 is OwnableRoles {
 
         uint256 mismatchTile = Board.getTile(result, mismatchPosition);
         require(
-            Board.getTile(nextBoard, mismatchPosition) == 0
-                && mismatchTile > 0
-                && mismatchTile < 3
+            Board.getTile(nextBoard, mismatchPosition) == 0 && mismatchTile > 0 && mismatchTile < 3
                 && mismatchCount == 1,
             BoardTransformInvalid()
         );
