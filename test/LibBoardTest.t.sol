@@ -73,7 +73,7 @@ contract LibBoardTest is Test {
         Board.validateStartPosition(boardArrayToBits(badBoard2));
 
         // Generated boards
-        for(uint256 i = 0; i < 50; i++) {
+        for (uint256 i = 0; i < 50; i++) {
             assertTrue(Board.validateStartPosition(Board.getStartPosition(keccak256(abi.encodePacked(i)))));
         }
     }

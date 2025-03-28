@@ -64,7 +64,7 @@ contract Play2048Test is Test {
 
         game.play(expectedSessionId, Board.LEFT);
         emit BoardPosition(boardBitsToArray(game.latestBoard(expectedSessionId)));
-        
+
         game.play(expectedSessionId, Board.DOWN);
         emit BoardPosition(boardBitsToArray(game.latestBoard(expectedSessionId)));
 

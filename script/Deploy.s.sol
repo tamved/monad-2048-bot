@@ -2,11 +2,11 @@
 pragma solidity >=0.8.28 <0.9.0;
 
 // Base
-import { Script } from "lib/forge-std/src/Script.sol";
-import { StdUtils } from "lib/forge-std/src/StdUtils.sol";
+import {Script} from "lib/forge-std/src/Script.sol";
+import {StdUtils} from "lib/forge-std/src/StdUtils.sol";
 
 // Targets
-import { Play2048 } from "src/Play2048.sol";
+import {Play2048} from "src/Play2048.sol";
 
 contract Deploy is StdUtils, Script {
     uint256 internal deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");

@@ -28,18 +28,18 @@ library Board {
         // Generate pseudo-random seed and get first tile to populate.
         uint256 rseed = uint256(keccak256(abi.encodePacked(seed)));
         uint256 pos1 = rseed % 16;
-        
+
         // Re-hash seed
         rseed = uint256(keccak256(abi.encodePacked(rseed)));
-        
+
         // Get second tile to populate.
-        uint256 pos2 = rseed % 16; 
-        while(pos2 == pos1) {
+        uint256 pos2 = rseed % 16;
+        while (pos2 == pos1) {
             pos2 = (pos2 + 1) % 16;
         }
 
-        for(uint8 i = 0; i < 16; i++) {
-            if(i == pos1 || i == pos2) {
+        for (uint8 i = 0; i < 16; i++) {
+            if (i == pos1 || i == pos2) {
                 position = setTile(position, i, (rseed % 100) > 90 ? 2 : 1);
             }
         }
