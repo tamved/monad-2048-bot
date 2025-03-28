@@ -71,6 +71,11 @@ contract LibBoardTest is Test {
 
         vm.expectRevert(Board.BoardStartInvalid.selector);
         Board.validateStartPosition(boardArrayToBits(badBoard2));
+
+        // Generated boards
+        for(uint256 i = 0; i < 50; i++) {
+            assertTrue(Board.validateStartPosition(Board.getStartPosition(keccak256(abi.encodePacked(i)))));
+        }
     }
 
     function testValidateTransformation() public pure {
