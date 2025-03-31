@@ -71,6 +71,17 @@ contract Play2048 is OwnableRoles {
     }
 
     // =============================================================//
+    //                             VIEW                             //
+    // =============================================================//
+
+    function getBoard(bytes32 sessionId) external view returns (uint8[16] memory boardArr) {
+        uint256 b = latestBoard[sessionId];
+        for (uint8 i = 0; i < 16; i++) {
+            boardArr[i] = Board.getTile(b, i);
+        }
+    }
+
+    // =============================================================//
     //                           EXTERNAL                           //
     // =============================================================//
 
