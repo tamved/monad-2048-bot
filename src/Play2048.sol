@@ -107,6 +107,11 @@ contract Play2048 is OwnableRoles {
         emit NewGameStart(player, sessionId, startBoard);
     }
 
+    /**
+     * @notice Makes a new move in a game.
+     * @param sessionId The unique ID of the gae.
+     * @param move The move to play
+     */
     function play(bytes32 sessionId, uint256 move) external onlyUnpaused updateSeed returns (uint256 result) {
         address player = msg.sender;
 
