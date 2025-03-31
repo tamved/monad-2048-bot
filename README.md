@@ -12,7 +12,7 @@ From the [2048 Wikipedia](https://en.wikipedia.org/wiki/2048_(video_game)) page:
 - The resulting tile cannot merge with another tile again in the same move.
 
 ## Deployments
-`Play2048.sol` is deployed on Monad testnet: [0x4e5b8bf263f57523a18296132cd4dfbe75e254e8a942a9a965ebf5f201f74f81](https://testnet.monadexplorer.com/address/0xBb9378705E67a5439f4AEF160cEAaC7D932BF119?tab=Contract)
+`Play2048.sol` is deployed on Monad testnet: [0xe1E5f226f8DAC0baC6b363c6e0B8A38a5DC7F1fB](https://testnet.monadexplorer.com/address/0xe1E5f226f8DAC0baC6b363c6e0B8A38a5DC7F1fB?tab=Contract)
 
 ## Development
 
