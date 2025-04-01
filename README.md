@@ -12,7 +12,7 @@ From the [2048 Wikipedia](https://en.wikipedia.org/wiki/2048_(video_game)) page:
 - The resulting tile cannot merge with another tile again in the same move.
 
 ## Deployments
-`Play2048.sol` is deployed on Monad testnet: [0xe1E5f226f8DAC0baC6b363c6e0B8A38a5DC7F1fB](https://testnet.monadexplorer.com/address/0xe1E5f226f8DAC0baC6b363c6e0B8A38a5DC7F1fB?tab=Contract)
+`Play2048.sol` is deployed on Monad testnet: [0x977FB1F92DFBf475dF926DB7Fee64cc705A762bD](https://testnet.monadexplorer.com/address/0x977FB1F92DFBf475dF926DB7Fee64cc705A762bD?tab=Contract)
 
 ## Development
 
@@ -44,12 +44,11 @@ $ forge fmt
 ## Documentation
 
 The `Play2048.sol` smart contract contains the API to play a game of 2048.
-- `startGame`: Starts a new game of 2048 for a player (`msg.sender`). The contract creates a new, unique "session ID" for the game, and assigns the game a generated starting position.
-- `play`: Lets a player make a move for a game by providing the game's session ID and the desired move: UP, DOWN, LEFT or RIGHT. The contract transforms the current position of the game based on the provided move. Board transformations work exactly as one would expect in a standard game of 2048.
+- `prepareGame`: Creates a new game session and commits the start position and first 3 moves of a game by submitting a hash of the ordered baord positions.
+- `startGame`: Starts a new game of 2048 for a player (`msg.sender`). The player reveals the first 4 boards of the game and the contract validates that this is a legal game of 2048.
+- `play`: Lets a player make a move for a game by providing the game's session ID and the desired move: UP, DOWN, LEFT or RIGHT, and the resulting board position. The contract then validates that the player has made a valid move (board transformation).
 
 The `LiBoard` library implements the logic of board transformations, and other helper functions for extracting information about a given board position.
-
-The contracts use a pseudo-random seed for aspects of the game that require randomness e.g. spawning a 2 or a 4 with a 90% and 10% chance, respectively, when returning a new position post board transformation. 
 
 The contract has an owner and an admin role. Holders of these permissions can pause the gameplay of the smart contract, at their discretion.
 
