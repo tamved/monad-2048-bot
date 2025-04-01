@@ -42,32 +42,77 @@ contract Play2048Test is Test {
 
     // Run with -vvvv to see board positions.
     function testShowcase() public {
-        // Start a game and get a starting position.
+
+        // Play 3 moves
+        uint256 startBoard = Board.getStartPosition(bytes32("random"));
+
+        uint256 board1 = Board.processMove(startBoard, Board.UP, bytes32("random"));
+        board1 = board1 | (Board.UP << 248);
+
+        uint256 board2 = Board.processMove(board1, Board.DOWN, bytes32("random"));
+        board2 = board2 | (Board.DOWN << 248);
+
+        uint256 board3 = Board.processMove(board2, Board.RIGHT, bytes32("random"));
+        board3 = board3 | (Board.RIGHT << 248);
+
+        // Prepare game by commiting the first 3 moves.
+        uint256[4] memory boards = [startBoard, board1, board2, board3];
+        bytes32 gameHash = keccak256(abi.encodePacked(boards));
+
         bytes32 expectedSessionId = keccak256(abi.encodePacked(player, block.number));
         vm.prank(player);
-        game.startGame();
+        game.prepareGame(gameHash);
 
-        uint256 startBoard = game.latestBoard(expectedSessionId);
-        assertTrue(startBoard > 0);
-        assertTrue(Board.validateStartPosition(startBoard));
+        assertEq(game.sessionFor(expectedSessionId), player);
+        assertEq(game.gameHash(gameHash), expectedSessionId);
 
-        emit BoardPosition(boardBitsToArray(startBoard));
+        // Start game by revealing commited boards.
+        vm.prank(player);
+        game.startGame(expectedSessionId, boards);
 
-        // Play moves.
-        vm.startPrank(player);
+        assertEq(game.latestBoard(expectedSessionId), board3);
 
-        game.play(expectedSessionId, Board.RIGHT);
-        emit BoardPosition(boardBitsToArray(game.latestBoard(expectedSessionId)));
+        // Play move.
+        uint256 board4 = Board.processMove(board3, Board.LEFT, bytes32("random"));
 
-        game.play(expectedSessionId, Board.UP);
-        emit BoardPosition(boardBitsToArray(game.latestBoard(expectedSessionId)));
+        // Encode move.
+        board4 = board4 | (Board.LEFT << 248);
 
-        game.play(expectedSessionId, Board.LEFT);
-        emit BoardPosition(boardBitsToArray(game.latestBoard(expectedSessionId)));
+        /**
+         * [0, 0, 1, 0]
+         * [0, 0, 0, 0]
+         * [0, 0, 0, 1]
+         * [0, 0, 0, 0]
+         * 
+         * UP:
+         * [0, 0, 1, 1]
+         * [0, 0, 1, 0]
+         * [0, 0, 0, 0]
+         * [0, 0, 0, 0]
+         * 
+         * DOWN:
+         * [0, 0, 0, 0]
+         * [0, 1, 0, 0]
+         * [0, 0, 0, 0]
+         * [0, 0, 2, 1]
+         * 
+         * RIGHT:
+         * [0, 0, 0, 0]
+         * [0, 0, 0, 1]
+         * [1, 0, 0, 0]
+         * [0, 0, 2, 1]
+         * 
+         * LEFT:
+         * [0, 0, 0, 0]
+         * [1, 0, 0, 1]
+         * [1, 0, 0, 0]
+         * [2, 1, 0, 0]
+         */
 
-        game.play(expectedSessionId, Board.DOWN);
-        emit BoardPosition(boardBitsToArray(game.latestBoard(expectedSessionId)));
+        // Submit move for validation.
+        vm.prank(player);
+        game.play(expectedSessionId, board4);
 
-        vm.stopPrank();
+        assertEq(game.latestBoard(expectedSessionId), board4);
     }
 }

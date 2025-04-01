@@ -50,7 +50,7 @@ library Board {
     // =============================================================//
 
     function validateStartPosition(uint256 board) public pure returns (bool) {
-        require(((board << 2) >> 130) == 0, DirtyBits());
+        require((board>> 128) == 0, DirtyBits());
 
         uint256 count;
         for (uint8 i = 0; i < 16; i++) {
@@ -64,6 +64,12 @@ library Board {
         require(count == 2, BoardStartInvalid());
 
         return true;
+    }
+
+    function boardBitsToArray(uint256 b) internal pure returns (uint8[16] memory boardArr) {
+        for (uint8 i = 0; i < 16; i++) {
+            boardArr[i] = uint8((b >> (120 - (i * 8))) & 0xFF);
+        }
     }
 
     function validateTransformation(uint256 prevBoard, uint256 nextBoard) public pure returns (bool) {
@@ -81,6 +87,8 @@ library Board {
             result = processMoveRight(prevBoard);
         } else if (move == LEFT) {
             result = processMoveLeft(prevBoard);
+        } else {
+            revert MoveInvalid();
         }
 
         uint8 mismatchPosition = 0;
@@ -146,6 +154,8 @@ library Board {
             // Set a 2 (90% probability) or a 4 (10% probability) on the randomly chosen tile.
             result = setTile(result, emptyIndices[rseed % emptySlots], (rseed % 100) > 90 ? 2 : 1);
         }
+
+        return (result << 128) >> 128;
     }
 
     function processMoveUp(uint256 board) public pure returns (uint256 result) {
@@ -353,6 +363,6 @@ library Board {
     }
 
     function getMove(uint256 board) internal pure returns (uint8) {
-        return uint8(board >> 248 & 0xFF);
+        return uint8((board >> 248) & 0xFF);
     }
 }

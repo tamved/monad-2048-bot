@@ -16,10 +16,16 @@ contract Play2048 is OwnableRoles {
 
     /// @dev Emitted when playing a the game that's paused.
     error GamePaused();
+    /// @dev Emitted when submitting an invalid game board.
+    error GameInvalid();
+    /// @dev Emitted when a game hash has already been used.
+    error GameHashUsed();
     /// @dev Emitted when playing a game that has not started.
     error GameNotStarted();
     /// @dev Emitted when submitting a game to an invalid session.
-    error SessionInvalid();
+    error GameHashInvalid();
+    /// @dev Emitted when someone other than the session's player plays the session's game.
+    error SessionPlayerInvalid();
 
     // =============================================================//
     //                            EVENT                             //
@@ -27,6 +33,8 @@ contract Play2048 is OwnableRoles {
 
     /// @dev Emitted when a system is paused/unpaused.
     event Paused(bool isPaused);
+    /// @dev Emitted when a game is committed.
+    event NewGameCommitment(address indexed player, bytes32 indexed id, bytes32 game);
     /// @dev Emitted when a game is started.
     event NewGameStart(address indexed player, bytes32 indexed id, uint256 board);
     /// @dev Emitted when a new valid move is played.
@@ -52,11 +60,11 @@ contract Play2048 is OwnableRoles {
     /// @notice Whether the system is paused.
     bool paused;
 
-    /// @notice Seed used for randomness.
-    bytes32 private seed = bytes32("2048");
-
     /// @notice Mapping from session to the latest board state.
     mapping(bytes32 sessionId => uint256 board) public latestBoard;
+
+    /// @notice Mapping from a hash of first 3 moves to session ID.
+    mapping(bytes32 gameHash => bytes32 sessionId) public gameHash;
 
     /// @notice Mapping from session ID to the player the session is reserved for.
     mapping(bytes32 sessionId => address player) public sessionFor;
@@ -85,61 +93,85 @@ contract Play2048 is OwnableRoles {
     //                           EXTERNAL                           //
     // =============================================================//
 
-    /// @dev Updates global seed.
-    modifier updateSeed() {
-        seed = keccak256(abi.encodePacked(block.number, seed));
-        _;
-    }
-
     /// @dev Reverts if the system is paused.
     modifier onlyUnpaused() {
         require(!paused, GamePaused());
         _;
     }
-
+    
     /**
-     * @notice Starts a new game for a player.
-     * @return startBoard The starting position of the game.
+     * @notice Commits the first 3 moves of a game to a session.
+     * 
+     * @param game The hash of the game after the first 3 moves.
      */
-    function startGame() external onlyUnpaused updateSeed returns (uint256 startBoard) {
+    function prepareGame(bytes32 game) external onlyUnpaused returns (bytes32 sessionId) {
         // Get player and game session.
         address player = msg.sender;
-        bytes32 sessionId = keccak256(abi.encodePacked(msg.sender, block.number));
+        sessionId = keccak256(abi.encodePacked(msg.sender, block.number));
+
+        // Check: game not already committed
+        require(gameHash[game] == bytes32(0), GameHashUsed());
 
         // Store session.
         sessionFor[sessionId] = player;
 
-        // Get start position.
-        startBoard = Board.getStartPosition(seed);
+        // Commit game hash to session.
+        gameHash[game] = sessionId;
+
+        emit NewGameCommitment(player, sessionId, game);
+    }
+
+    /**
+     * @notice Starts a new game for a player.
+     * 
+     * @param sessionId The unique ID of the game.
+     * @param game An ordered series of boards.
+     */
+    function startGame(bytes32 sessionId, uint256[4] calldata game) external onlyUnpaused {
+        // Get player.
+        address player = msg.sender;
+
+        // Check: provided session is reserved for the player.
+        require(player == sessionFor[sessionId], SessionPlayerInvalid());
+
+        // Check: provided game is reserved for session.
+        require(gameHash[keccak256(abi.encodePacked(game))] == sessionId, GameHashInvalid());
+
+        // Check: game has valid start board.
+        require(Board.validateStartPosition(game[0]), GameInvalid());
+
+        // Check: game has valid board transformations.
+        for(uint256 i = 1; i < 4; i++) {
+            require(Board.validateTransformation(game[i-1], game[i]), GameInvalid());
+        }
 
         // Store board.
-        latestBoard[sessionId] = startBoard;
+        latestBoard[sessionId] = game[3];
 
-        emit NewGameStart(player, sessionId, startBoard);
+        emit NewGameStart(player, sessionId, game[3]);
     }
 
     /**
      * @notice Makes a new move in a game.
-     * @param sessionId The unique ID of the gae.
-     * @param move The move to play
+     * @param sessionId The unique ID of the game.
      */
-    function play(bytes32 sessionId, uint256 move) external onlyUnpaused updateSeed returns (uint256 result) {
+    function play(bytes32 sessionId, uint256 result) external onlyUnpaused {
         address player = msg.sender;
 
         // Check: provided session is reserved for the player.
-        require(player == sessionFor[sessionId], SessionInvalid());
+        require(player == sessionFor[sessionId], SessionPlayerInvalid());
 
-        // Check: the game for the session has started.
-        uint256 board = latestBoard[sessionId];
-        require(board > 0, GameNotStarted());
+        // Check: game has started for session.
+        uint256 latest = latestBoard[sessionId];
+        require(latest > 0, GameNotStarted());
 
-        // Process move.
-        result = Board.processMove(board, move, seed);
+        // Check: playing a valid move.
+        require(Board.validateTransformation(latest, result), GameInvalid());
 
         // Store updated board.
         latestBoard[sessionId] = result;
 
-        emit NewMove(player, sessionId, move, result);
+        emit NewMove(player, sessionId, Board.getMove(result), result);
     }
 
     /// @notice Lets an owner/admin pause or unpause the system.
