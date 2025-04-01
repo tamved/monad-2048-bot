@@ -100,6 +100,28 @@ contract LibBoardTest is Test {
         assertTrue(Board.validateTransformation(boardArrayToBits(board), resultWithMove));
     }
 
+    function testGameOver() public {
+        /**
+         * [1,2,3,4]
+         * [2,3,4,1]
+         * [3,4,1,2]
+         * [4,1,2,3]
+         */
+        uint8[16] memory board = [1, 2, 3, 4, 2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3];
+
+        vm.expectRevert(Board.MoveInvalid.selector);
+        Board.processMove(boardArrayToBits(board), Board.UP, bytes32(0));
+
+        vm.expectRevert(Board.MoveInvalid.selector);
+        Board.processMove(boardArrayToBits(board), Board.DOWN, bytes32(0));
+
+        vm.expectRevert(Board.MoveInvalid.selector);
+        Board.processMove(boardArrayToBits(board), Board.LEFT, bytes32(0));
+
+        vm.expectRevert(Board.MoveInvalid.selector);
+        Board.processMove(boardArrayToBits(board), Board.RIGHT, bytes32(0));
+    }
+
     function testValidateProcessMovesUpSimple() public pure {
         /**
          * [0,0,0,0]
