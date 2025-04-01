@@ -59,18 +59,18 @@ contract Play2048Test is Test {
         uint256[4] memory boards = [startBoard, board1, board2, board3];
         bytes32 gameHash = keccak256(abi.encodePacked(boards));
 
-        bytes32 expectedSessionId = keccak256(abi.encodePacked(player, block.number));
+        bytes32 sessionId = keccak256(abi.encodePacked(player, block.number));
         vm.prank(player);
-        game.prepareGame(gameHash);
+        game.prepareGame(sessionId, gameHash);
 
-        assertEq(game.sessionFor(expectedSessionId), player);
-        assertEq(game.gameHash(gameHash), expectedSessionId);
+        assertEq(game.sessionFor(sessionId), player);
+        assertEq(game.gameHash(gameHash), sessionId);
 
         // Start game by revealing commited boards.
         vm.prank(player);
-        game.startGame(expectedSessionId, boards);
+        game.startGame(sessionId, boards);
 
-        assertEq(game.latestBoard(expectedSessionId), board3);
+        assertEq(game.latestBoard(sessionId), board3);
 
         // Play move.
         uint256 board4 = Board.processMove(board3, Board.LEFT, bytes32("random"));
@@ -111,8 +111,8 @@ contract Play2048Test is Test {
 
         // Submit move for validation.
         vm.prank(player);
-        game.play(expectedSessionId, board4);
+        game.play(sessionId, board4);
 
-        assertEq(game.latestBoard(expectedSessionId), board4);
+        assertEq(game.latestBoard(sessionId), board4);
     }
 }

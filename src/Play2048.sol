@@ -104,10 +104,12 @@ contract Play2048 is OwnableRoles {
      * 
      * @param game The hash of the game after the first 3 moves.
      */
-    function prepareGame(bytes32 game) external onlyUnpaused returns (bytes32 sessionId) {
+    function prepareGame(bytes32 sessionId, bytes32 game) external onlyUnpaused {
         // Get player and game session.
         address player = msg.sender;
-        sessionId = keccak256(abi.encodePacked(msg.sender, block.number));
+
+        // Check: provided session is reserved for the player.
+        require(sessionFor[sessionId] == address(0), SessionPlayerInvalid());
 
         // Check: game not already committed
         require(gameHash[game] == bytes32(0), GameHashUsed());
