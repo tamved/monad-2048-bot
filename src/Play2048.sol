@@ -22,10 +22,10 @@ contract Play2048 {
     error GameHashUsed();
     /// @dev Emitted when playing a game that has not started.
     error GameNotStarted();
-    /// @dev Emitted when submitting a game to an invalid session.
+    /// @dev Emitted when submitting a game to an invalid game.
     error GameHashInvalid();
-    /// @dev Emitted when someone other than the session's player plays the session's game.
-    error SessionPlayerInvalid();
+    /// @dev Emitted when someone other than the game's player plays the game's game.
+    error GamePlayerInvalid();
 
     // =============================================================//
     //                            EVENT                             //
@@ -54,21 +54,21 @@ contract Play2048 {
     //                           STORAGE                            //
     // =============================================================//
 
-    /// @notice Mapping from session to the latest board state.
-    mapping(bytes32 sessionId => uint256 board) public latestBoard;
+    /// @notice Mapping from game to the latest board state.
+    mapping(bytes32 gameId => uint256 board) public latestBoard;
 
-    /// @notice Mapping from a hash of first 3 moves to session ID.
-    mapping(bytes32 gameHash => bytes32 sessionId) public gameHash;
+    /// @notice Mapping from a hash of first 3 moves to game ID.
+    mapping(bytes32 gameHash => bytes32 gameId) public gameHash;
 
-    /// @notice Mapping from session ID to the player the session is reserved for.
-    mapping(bytes32 sessionId => address player) public sessionFor;
+    /// @notice Mapping from game ID to the player the game is reserved for.
+    mapping(bytes32 gameId => address player) public gameFor;
 
     // =============================================================//
     //                             VIEW                             //
     // =============================================================//
 
-    function getBoard(bytes32 sessionId) external view returns (uint8[16] memory boardArr) {
-        uint256 b = latestBoard[sessionId];
+    function getBoard(bytes32 gameId) external view returns (uint8[16] memory boardArr) {
+        uint256 b = latestBoard[gameId];
         for (uint8 i = 0; i < 16; i++) {
             boardArr[i] = Board.getTile(b, i);
         }
@@ -79,44 +79,44 @@ contract Play2048 {
     // =============================================================//
 
     /**
-     * @notice Commits the first 3 moves of a game to a session.
+     * @notice Commits the first 3 moves of a game to a game.
      * 
      * @param game The hash of the game after the first 3 moves.
      */
-    function prepareGame(bytes32 sessionId, bytes32 game) external {
-        // Get player and game session.
+    function prepareGame(bytes32 gameId, bytes32 game) external {
+        // Get player and game game.
         address player = msg.sender;
 
-        // Check: provided session is reserved for the player.
-        require(sessionFor[sessionId] == address(0), SessionPlayerInvalid());
+        // Check: provided game is reserved for the player.
+        require(gameFor[gameId] == address(0), GamePlayerInvalid());
 
         // Check: game not already committed
         require(gameHash[game] == bytes32(0), GameHashUsed());
 
-        // Store session.
-        sessionFor[sessionId] = player;
+        // Store game.
+        gameFor[gameId] = player;
 
-        // Commit game hash to session.
-        gameHash[game] = sessionId;
+        // Commit game hash to game.
+        gameHash[game] = gameId;
 
-        emit NewGameCommitment(player, sessionId, game);
+        emit NewGameCommitment(player, gameId, game);
     }
 
     /**
      * @notice Starts a new game for a player.
      * 
-     * @param sessionId The unique ID of the game.
+     * @param gameId The unique ID of the game.
      * @param game An ordered series of boards.
      */
-    function startGame(bytes32 sessionId, uint256[4] calldata game) external {
+    function startGame(bytes32 gameId, uint256[4] calldata game) external {
         // Get player.
         address player = msg.sender;
 
-        // Check: provided session is reserved for the player.
-        require(player == sessionFor[sessionId], SessionPlayerInvalid());
+        // Check: provided game is reserved for the player.
+        require(player == gameFor[gameId], GamePlayerInvalid());
 
-        // Check: provided game is reserved for session.
-        require(gameHash[keccak256(abi.encodePacked(game))] == sessionId, GameHashInvalid());
+        // Check: provided game is reserved for game.
+        require(gameHash[keccak256(abi.encodePacked(game))] == gameId, GameHashInvalid());
 
         // Check: game has valid start board.
         require(Board.validateStartPosition(game[0]), GameInvalid());
@@ -127,31 +127,31 @@ contract Play2048 {
         }
 
         // Store board.
-        latestBoard[sessionId] = game[3];
+        latestBoard[gameId] = game[3];
 
-        emit NewGameStart(player, sessionId, game[3]);
+        emit NewGameStart(player, gameId, game[3]);
     }
 
     /**
      * @notice Makes a new move in a game.
-     * @param sessionId The unique ID of the game.
+     * @param gameId The unique ID of the game.
      */
-    function play(bytes32 sessionId, uint256 result) external {
+    function play(bytes32 gameId, uint256 result) external {
         address player = msg.sender;
 
-        // Check: provided session is reserved for the player.
-        require(player == sessionFor[sessionId], SessionPlayerInvalid());
+        // Check: provided game is reserved for the player.
+        require(player == gameFor[gameId], GamePlayerInvalid());
 
-        // Check: game has started for session.
-        uint256 latest = latestBoard[sessionId];
+        // Check: game has started for game.
+        uint256 latest = latestBoard[gameId];
         require(latest > 0, GameNotStarted());
 
         // Check: playing a valid move.
         require(Board.validateTransformation(latest, result), GameInvalid());
 
         // Store updated board.
-        latestBoard[sessionId] = result;
+        latestBoard[gameId] = result;
 
-        emit NewMove(player, sessionId, Board.getMove(result), result);
+        emit NewMove(player, gameId, Board.getMove(result), result);
     }
 }
