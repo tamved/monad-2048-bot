@@ -8,8 +8,6 @@ import {Board} from "src/LibBoard.sol";
 contract Play2048Test is Test {
     Play2048 internal game;
 
-    address owner;
-    address admin;
     address player;
 
     event BoardPosition(uint8[16] position);
@@ -32,12 +30,10 @@ contract Play2048Test is Test {
 
     function setUp() public {
         // Setup actors.
-        owner = makeAddr("Owner");
-        admin = makeAddr("Admin");
         player = makeAddr("Player");
 
         // Deploy game.
-        game = new Play2048(owner);
+        game = new Play2048();
     }
 
     // Run with -vvvv to see board positions.
