@@ -66,12 +66,6 @@ library Board {
         return true;
     }
 
-    function boardBitsToArray(uint256 b) internal pure returns (uint8[16] memory boardArr) {
-        for (uint8 i = 0; i < 16; i++) {
-            boardArr[i] = uint8((b >> (120 - (i * 8))) & 0xFF);
-        }
-    }
-
     function validateTransformation(uint256 prevBoard, uint256 nextBoard) public pure returns (bool) {
         require(((prevBoard << 8) >> 136) == 0, DirtyBits());
         require(((nextBoard << 8) >> 136) == 0, DirtyBits());
