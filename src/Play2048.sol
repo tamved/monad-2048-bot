@@ -81,9 +81,9 @@ contract Play2048 {
     /**
      * @notice Commits the first 3 moves of a game to a game.
      * 
-     * @param game The hash of the game after the first 3 moves.
+     * @param hash The hash of the game after the first 3 moves.
      */
-    function prepareGame(bytes32 gameId, bytes32 game) external {
+    function prepareGame(bytes32 gameId, bytes32 hash) external {
         // Get player and game game.
         address player = msg.sender;
 
@@ -91,24 +91,24 @@ contract Play2048 {
         require(gameFor[gameId] == address(0), GamePlayerInvalid());
 
         // Check: game not already committed
-        require(gameHash[game] == bytes32(0), GameHashUsed());
+        require(gameHash[hash] == bytes32(0), GameHashUsed());
 
         // Store game.
         gameFor[gameId] = player;
 
         // Commit game hash to game.
-        gameHash[game] = gameId;
+        gameHash[hash] = gameId;
 
-        emit NewGameCommitment(player, gameId, game);
+        emit NewGameCommitment(player, gameId, hash);
     }
 
     /**
      * @notice Starts a new game for a player.
      * 
      * @param gameId The unique ID of the game.
-     * @param game An ordered series of boards.
+     * @param boards An ordered series of boards.
      */
-    function startGame(bytes32 gameId, uint256[4] calldata game) external {
+    function startGame(bytes32 gameId, uint256[4] calldata boards) external {
         // Get player.
         address player = msg.sender;
 
@@ -116,20 +116,20 @@ contract Play2048 {
         require(player == gameFor[gameId], GamePlayerInvalid());
 
         // Check: provided game is reserved for game.
-        require(gameHash[keccak256(abi.encodePacked(game))] == gameId, GameHashInvalid());
+        require(gameHash[keccak256(abi.encodePacked(boards))] == gameId, GameHashInvalid());
 
         // Check: game has valid start board.
-        require(Board.validateStartPosition(game[0]), GameInvalid());
+        require(Board.validateStartPosition(boards[0]), GameInvalid());
 
         // Check: game has valid board transformations.
         for(uint256 i = 1; i < 4; i++) {
-            require(Board.validateTransformation(game[i-1], game[i]), GameInvalid());
+            require(Board.validateTransformation(boards[i-1], boards[i]), GameInvalid());
         }
 
         // Store board.
-        latestBoard[gameId] = game[3];
+        latestBoard[gameId] = boards[3];
 
-        emit NewGameStart(player, gameId, game[3]);
+        emit NewGameStart(player, gameId, boards[3]);
     }
 
     /**
