@@ -41,7 +41,6 @@ contract Monad2048 {
     mapping(bytes32 gameId => uint256 board) public latestBoard;
     /// @notice Mapping from a hash of first 3 moves to game ID.
     mapping(bytes32 gameHash => bytes32 gameId) public gameHashOf;
-    
 
     // =============================================================//
     //                             VIEW                             //
