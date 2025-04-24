@@ -88,13 +88,13 @@ contract Monad2048 {
             require(Board.validateTransformation(boards[i - 1], boards[i]), GameBoardInvalid());
         }
 
-        // Store game.
+        // Reserve game for player.
         gameFor[gameId] = player;
 
-        // Commit game hash to game.
+        // Mark the game-start as played.
         gameHashOf[hashedBoards] = gameId;
 
-        // Store board.
+        // Store the latest board of the game.
         latestBoard[gameId] = boards[3];
 
         emit NewGame(player, gameId, boards[3]);
