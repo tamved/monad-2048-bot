@@ -6,8 +6,8 @@ library Board {
     //                            ERRORS                            //
     // =============================================================//
 
-    error DirtyBits();
     error MoveInvalid();
+    error UnexpectedBits();
     error BoardStartInvalid();
     error BoardTransformInvalid();
 
@@ -50,7 +50,7 @@ library Board {
     // =============================================================//
 
     function validateStartPosition(uint256 board) public pure returns (bool) {
-        require((board>> 128) == 0, DirtyBits());
+        require((board >> 128) == 0, UnexpectedBits());
 
         uint256 count;
         for (uint8 i = 0; i < 16; i++) {
@@ -67,8 +67,8 @@ library Board {
     }
 
     function validateTransformation(uint256 prevBoard, uint256 nextBoard) public pure returns (bool) {
-        require(((prevBoard << 8) >> 136) == 0, DirtyBits());
-        require(((nextBoard << 8) >> 136) == 0, DirtyBits());
+        require(((prevBoard << 8) >> 136) == 0, UnexpectedBits());
+        require(((nextBoard << 8) >> 136) == 0, UnexpectedBits());
 
         uint256 result;
         uint8 move = getMove(nextBoard);

@@ -5,6 +5,12 @@ import {Test} from "lib/forge-std/src/Test.sol";
 import {Board} from "src/LibBoard.sol";
 
 contract LibBoardTest is Test {
+    function boardBitsToArray(uint256 b) internal pure returns (uint8[16] memory boardArr) {
+        for (uint8 i = 0; i < 16; i++) {
+            boardArr[i] = uint8((b >> (120 - (i * 8))) & 0xFF);
+        }
+    }
+
     function boardArrayToBits(uint8[16] memory b) internal pure returns (uint256) {
         uint256 result = 0;
 
@@ -13,12 +19,6 @@ contract LibBoardTest is Test {
         }
 
         return result;
-    }
-
-    function boardBitsToArray(uint256 b) internal pure returns (uint8[16] memory boardArr) {
-        for (uint8 i = 0; i < 16; i++) {
-            boardArr[i] = uint8((b >> (120 - (i * 8))) & 0xFF);
-        }
     }
 
     function testValidateStartBoard() public {

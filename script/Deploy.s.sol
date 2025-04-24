@@ -6,7 +6,7 @@ import {Script} from "lib/forge-std/src/Script.sol";
 import {StdUtils} from "lib/forge-std/src/StdUtils.sol";
 
 // Targets
-import {Play2048} from "src/Play2048.sol";
+import {Monad2048} from "src/Monad2048.sol";
 
 contract Deploy is StdUtils, Script {
     uint256 internal deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -15,7 +15,7 @@ contract Deploy is StdUtils, Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployer);
-        gameContract = address(new Play2048());
+        gameContract = address(new Monad2048());
         vm.stopBroadcast();
     }
 }
