@@ -106,6 +106,7 @@ contract Monad2048 {
      * @param resultBoard The result of applying a move on the latest board.
      */
     function play(bytes32 gameId, uint256 resultBoard) external {
+        // Get player.
         address player = msg.sender;
 
         // Check: provided game is reserved for the player.
