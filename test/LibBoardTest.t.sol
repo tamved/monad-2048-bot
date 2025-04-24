@@ -5,12 +5,14 @@ import {Test} from "lib/forge-std/src/Test.sol";
 import {Board} from "src/LibBoard.sol";
 
 contract LibBoardTest is Test {
+    // Helper function to print values for debugging.
     function boardBitsToArray(uint256 b) internal pure returns (uint8[16] memory boardArr) {
         for (uint8 i = 0; i < 16; i++) {
             boardArr[i] = uint8((b >> (120 - (i * 8))) & 0xFF);
         }
     }
 
+    // Helper function to print values for debugging.
     function boardArrayToBits(uint8[16] memory b) internal pure returns (uint256) {
         uint256 result = 0;
 

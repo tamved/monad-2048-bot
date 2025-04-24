@@ -6,27 +6,11 @@ import {Monad2048} from "src/Monad2048.sol";
 import {Board} from "src/LibBoard.sol";
 
 contract Monad2048Test is Test {
+    // Target game contract.
     Monad2048 internal game;
 
+    // Game player
     address player;
-
-    event BoardPosition(uint8[16] position);
-
-    function boardBitsToArray(uint256 b) internal pure returns (uint8[16] memory boardArr) {
-        for (uint8 i = 0; i < 16; i++) {
-            boardArr[i] = uint8((b >> (120 - (i * 8))) & 0xFF);
-        }
-    }
-
-    function boardArrayToBits(uint8[16] memory b) internal pure returns (uint256) {
-        uint256 result = 0;
-
-        for (uint8 i = 0; i < 16; i++) {
-            result = (result << 8) | b[i]; // Shift first, then OR
-        }
-
-        return result;
-    }
 
     function setUp() public {
         // Setup actors.
@@ -36,7 +20,6 @@ contract Monad2048Test is Test {
         game = new Monad2048();
     }
 
-    // Run with -vvvv to see board positions.
     function testShowcase() public {
         // Play 3 moves
         uint256 startBoard = Board.getStartPosition(bytes32("random"));
