@@ -82,19 +82,31 @@ contract LibBoardTest is Test {
          * [2,1,3,2]
          * [0,1,3,2]
          */
-        uint8[16] memory board = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0];
+        uint8[16] memory board = [0, 0, 1, 1, 0, 0, 2, 4, 2, 1, 3, 2, 0, 1, 3, 2];
 
         /**
-         * [1,0,0,0]
+         * [0,0,0,0]
          * [0,0,1,1]
          * [0,0,2,4]
          * [2,2,4,3]
          */
-        uint8[16] memory expectedResultDown = [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0];
+        uint8[16] memory expectedResultDown = [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 4, 2, 2, 4, 3];
+
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
+        uint8[] memory emptyIndices = new uint8[](8);
+        uint256 idx = 0;
+        for (uint8 i = 0; i < 16; i++) {
+            if (expectedResultDown[i] == 0) {
+                emptyIndices[idx] = i;
+                idx++;
+            }
+        }
+        expectedResultDown[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 resultWithMove = boardArrayToBits(expectedResultDown) | (0x01 << 248);
 
-        assertTrue(Board.validateTransformation(boardArrayToBits(board), resultWithMove));
+        assertTrue(Board.validateTransformation(boardArrayToBits(board), resultWithMove, seed));
     }
 
     function testGameOver() public {
@@ -107,16 +119,16 @@ contract LibBoardTest is Test {
         uint8[16] memory board = [1, 2, 3, 4, 2, 3, 4, 1, 3, 4, 1, 2, 4, 1, 2, 3];
 
         vm.expectRevert(Board.MoveInvalid.selector);
-        Board.processMove(boardArrayToBits(board), Board.UP, bytes32(0));
+        Board.processMove(boardArrayToBits(board), Board.UP, uint256(keccak256("random")));
 
         vm.expectRevert(Board.MoveInvalid.selector);
-        Board.processMove(boardArrayToBits(board), Board.DOWN, bytes32(0));
+        Board.processMove(boardArrayToBits(board), Board.DOWN, uint256(keccak256("random")));
 
         vm.expectRevert(Board.MoveInvalid.selector);
-        Board.processMove(boardArrayToBits(board), Board.LEFT, bytes32(0));
+        Board.processMove(boardArrayToBits(board), Board.LEFT, uint256(keccak256("random")));
 
         vm.expectRevert(Board.MoveInvalid.selector);
-        Board.processMove(boardArrayToBits(board), Board.RIGHT, bytes32(0));
+        Board.processMove(boardArrayToBits(board), Board.RIGHT, uint256(keccak256("random")));
     }
 
     function testValidateProcessMovesUpSimple() public pure {
@@ -138,11 +150,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultUp = [0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(abi.encodePacked(boardArrayToBits(board1), Board.UP, boardArrayToBits(expectedResultUp), seed))
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](15);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -151,7 +160,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultUp[emptyIndices[rseed % 15]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultUp[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.UP, seed);
         assertEq(boardArrayToBits(expectedResultUp), result);
@@ -175,11 +184,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultUp = [2, 4, 2, 0, 3, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(abi.encodePacked(boardArrayToBits(board1), Board.UP, boardArrayToBits(expectedResultUp), seed))
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](10);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -188,7 +194,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultUp[emptyIndices[rseed % 10]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultUp[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.UP, seed);
         assertEq(boardArrayToBits(expectedResultUp), result);
@@ -212,11 +218,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultUp = [0, 1, 1, 4, 0, 0, 3, 2, 0, 0, 2, 1, 0, 0, 0, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(abi.encodePacked(boardArrayToBits(board1), Board.UP, boardArrayToBits(expectedResultUp), seed))
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](9);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -225,7 +228,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultUp[emptyIndices[rseed % 9]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultUp[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.UP, seed);
         assertEq(boardArrayToBits(expectedResultUp), result);
@@ -250,13 +253,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultDown = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.DOWN, boardArrayToBits(expectedResultDown), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](14);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -265,7 +263,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultDown[emptyIndices[rseed % 14]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultDown[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.DOWN, seed);
         assertEq(boardArrayToBits(expectedResultDown), result);
@@ -289,13 +287,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultDown = [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 2, 1, 2, 3, 1];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.DOWN, boardArrayToBits(expectedResultDown), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](9);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -304,7 +297,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultDown[emptyIndices[rseed % 9]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultDown[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.DOWN, seed);
         assertEq(boardArrayToBits(expectedResultDown), result);
@@ -328,13 +321,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultDown = [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 2, 4, 2, 2, 4, 3];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.DOWN, boardArrayToBits(expectedResultDown), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](8);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -343,7 +331,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultDown[emptyIndices[rseed % 8]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultDown[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.DOWN, seed);
         assertEq(boardArrayToBits(expectedResultDown), result);
@@ -368,13 +356,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultRight = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.RIGHT, boardArrayToBits(expectedResultRight), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](14);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -383,7 +366,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultRight[emptyIndices[rseed % 14]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultRight[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.RIGHT, seed);
         assertEq(boardArrayToBits(expectedResultRight), result);
@@ -406,13 +389,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultRight = [0, 1, 2, 1, 0, 0, 1, 2, 0, 0, 0, 1, 0, 0, 0, 3];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.RIGHT, boardArrayToBits(expectedResultRight), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](9);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -421,7 +399,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultRight[emptyIndices[rseed % 9]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultRight[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.RIGHT, seed);
         assertEq(boardArrayToBits(expectedResultRight), result);
@@ -444,13 +422,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultRight = [0, 2, 3, 1, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.RIGHT, boardArrayToBits(expectedResultRight), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](11);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -459,7 +432,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultRight[emptyIndices[rseed % 11]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultRight[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.RIGHT, seed);
         assertEq(boardArrayToBits(expectedResultRight), result);
@@ -484,13 +457,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultLeft = [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.LEFT, boardArrayToBits(expectedResultLeft), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](14);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -499,7 +467,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultLeft[emptyIndices[rseed % 14]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultLeft[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.LEFT, seed);
         assertEq(boardArrayToBits(expectedResultLeft), result);
@@ -522,13 +490,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultLeft = [1, 2, 1, 0, 1, 2, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.LEFT, boardArrayToBits(expectedResultLeft), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](9);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -537,7 +500,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultLeft[emptyIndices[rseed % 9]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultLeft[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.LEFT, seed);
         assertEq(boardArrayToBits(expectedResultLeft), result);
@@ -560,13 +523,8 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory expectedResultLeft = [2, 3, 1, 0, 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 
-        bytes32 seed = bytes32("1");
-        uint256 rseed = uint256(
-            keccak256(
-                abi.encodePacked(boardArrayToBits(board1), Board.LEFT, boardArrayToBits(expectedResultLeft), seed)
-            )
-        );
-
+        // Populate random tile.
+        uint256 seed = uint256(keccak256("random"));
         uint8[] memory emptyIndices = new uint8[](11);
         uint256 idx = 0;
         for (uint8 i = 0; i < 16; i++) {
@@ -575,7 +533,7 @@ contract LibBoardTest is Test {
                 idx++;
             }
         }
-        expectedResultLeft[emptyIndices[rseed % 11]] = (rseed % 100) > 90 ? 2 : 1;
+        expectedResultLeft[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.LEFT, seed);
         assertEq(boardArrayToBits(expectedResultLeft), result);

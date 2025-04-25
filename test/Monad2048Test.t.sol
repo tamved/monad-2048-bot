@@ -21,23 +21,27 @@ contract Monad2048Test is Test {
     }
 
     function testShowcase() public {
-        // Play 3 moves
+        // Come up with a game ID.
+        bytes32 gameId = keccak256(abi.encodePacked(player, "random"));
+
+        // Play 3 moves.
         uint256 startBoard = Board.getStartPosition(bytes32("random"));
 
-        uint256 board1 = Board.processMove(startBoard, Board.UP, bytes32("random"));
+        // The new tile on every move uses the seed `uint256(keccak256(abi.encodePacked(gameId, moveNumber)))` where moveNumber starts at `1`.
+        uint256 board1 =
+            Board.processMove(startBoard, Board.UP, uint256(keccak256(abi.encodePacked(gameId, uint256(1)))));
         board1 = board1 | (Board.UP << 248);
 
-        uint256 board2 = Board.processMove(board1, Board.DOWN, bytes32("random"));
+        uint256 board2 = Board.processMove(board1, Board.DOWN, uint256(keccak256(abi.encodePacked(gameId, uint256(2)))));
         board2 = board2 | (Board.DOWN << 248);
 
-        uint256 board3 = Board.processMove(board2, Board.RIGHT, bytes32("random"));
+        uint256 board3 =
+            Board.processMove(board2, Board.RIGHT, uint256(keccak256(abi.encodePacked(gameId, uint256(3)))));
         board3 = board3 | (Board.RIGHT << 248);
 
         // Calculate hash of start position plus the first 3 moves.
         uint256[4] memory boards = [startBoard, board1, board2, board3];
         bytes32 gameHash = keccak256(abi.encodePacked(boards));
-
-        bytes32 gameId = keccak256(abi.encodePacked(player, block.number));
 
         assertEq(game.gameFor(gameId), address(0));
         assertEq(game.gameHashOf(gameHash), bytes32(0));
@@ -52,41 +56,10 @@ contract Monad2048Test is Test {
         assertEq(game.latestBoard(gameId), board3);
 
         // Play move.
-        uint256 board4 = Board.processMove(board3, Board.LEFT, bytes32("random"));
+        uint256 board4 = Board.processMove(board3, Board.LEFT, uint256(keccak256(abi.encodePacked(gameId, uint256(4)))));
 
         // Encode move.
         board4 = board4 | (Board.LEFT << 248);
-
-        /**
-         * [0, 0, 1, 0]
-         * [0, 0, 0, 0]
-         * [0, 0, 0, 1]
-         * [0, 0, 0, 0]
-         *
-         * UP:
-         * [0, 0, 1, 1]
-         * [0, 0, 1, 0]
-         * [0, 0, 0, 0]
-         * [0, 0, 0, 0]
-         *
-         * DOWN:
-         * [0, 0, 0, 0]
-         * [0, 1, 0, 0]
-         * [0, 0, 0, 0]
-         * [0, 0, 2, 1]
-         *
-         * RIGHT:
-         * [0, 0, 0, 0]
-         * [0, 0, 0, 1]
-         * [1, 0, 0, 0]
-         * [0, 0, 2, 1]
-         *
-         * LEFT:
-         * [0, 0, 0, 0]
-         * [1, 0, 0, 1]
-         * [1, 0, 0, 0]
-         * [2, 1, 0, 0]
-         */
 
         // Submit move for validation.
         vm.prank(player);

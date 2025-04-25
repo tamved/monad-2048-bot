@@ -66,49 +66,19 @@ library Board {
         return true;
     }
 
-    function validateTransformation(uint256 prevBoard, uint256 nextBoard) public pure returns (bool) {
+    function validateTransformation(uint256 prevBoard, uint256 nextBoard, uint256 seed) public pure returns (bool) {
         require(((prevBoard << 8) >> 136) == 0, UnexpectedBits());
         require(((nextBoard << 8) >> 136) == 0, UnexpectedBits());
 
-        uint256 result;
-        uint8 move = getMove(nextBoard);
-
-        if (move == UP) {
-            result = processMoveUp(prevBoard);
-        } else if (move == DOWN) {
-            result = processMoveDown(prevBoard);
-        } else if (move == RIGHT) {
-            result = processMoveRight(prevBoard);
-        } else if (move == LEFT) {
-            result = processMoveLeft(prevBoard);
-        } else {
-            revert MoveInvalid();
-        }
-
-        uint8 mismatchPosition = 0;
-        uint8 mismatchCount = 0;
-
-        for (uint8 i = 0; i < 16; i++) {
-            if (getTile(result, i) != getTile(nextBoard, i)) {
-                mismatchCount++;
-                mismatchPosition = i;
-            }
-        }
-        uint256 mismatchTile = getTile(nextBoard, mismatchPosition);
-
-        require(
-            getTile(result, mismatchPosition) == 0 && mismatchTile > 0 && mismatchTile < 3 && mismatchCount == 1,
-            BoardTransformInvalid()
-        );
-
-        return true;
+        uint256 result = processMove(prevBoard, getMove(nextBoard), seed);
+        return result == ((nextBoard << 8) >> 8);
     }
 
     // =============================================================//
     //                        TRANSFORMATIONS                       //
     // =============================================================//
 
-    function processMove(uint256 board, uint256 move, bytes32 seed) public pure returns (uint256 result) {
+    function processMove(uint256 board, uint256 move, uint256 seed) public pure returns (uint256 result) {
         // Check: the move is valid.
         require(move < 4, MoveInvalid());
 
@@ -135,7 +105,6 @@ library Board {
 
         if (emptySlots > 0) {
             // Generate pseudo-random seed.
-            uint256 rseed = uint256(keccak256(abi.encodePacked(board, move, result, seed)));
             uint8[] memory emptyIndices = new uint8[](emptySlots);
             uint256 idx = 0;
             for (uint8 i = 0; i < 16; i++) {
@@ -146,7 +115,7 @@ library Board {
             }
 
             // Set a 2 (90% probability) or a 4 (10% probability) on the randomly chosen tile.
-            result = setTile(result, emptyIndices[rseed % emptySlots], (rseed % 100) > 90 ? 2 : 1);
+            result = setTile(result, emptyIndices[seed % emptySlots], (seed % 100) > 90 ? 2 : 1);
         }
 
         return (result << 128) >> 128;

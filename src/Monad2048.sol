@@ -39,6 +39,8 @@ contract Monad2048 {
     mapping(bytes32 gameId => address player) public gameFor;
     /// @notice Mapping from game ID to the latest board state.
     mapping(bytes32 gameId => uint256 board) public latestBoard;
+    /// @notice Mapping from game ID to the move count of the game.
+    mapping(bytes32 gameId => uint256 nextMove) public nextMove;
     /// @notice Mapping from a hash of start position plus first 3 moves to game ID.
     mapping(bytes32 gameHash => bytes32 gameId) public gameHashOf;
 
@@ -51,11 +53,12 @@ contract Monad2048 {
      * @dev Each array position stores the log_2 of that tile's value.
      * @param gameId The unique ID of a game.
      */
-    function getBoard(bytes32 gameId) external view returns (uint8[16] memory boardArr) {
+    function getBoard(bytes32 gameId) external view returns (uint8[16] memory boardArr, uint256 nextMoveNumber) {
         uint256 b = latestBoard[gameId];
         for (uint8 i = 0; i < 16; i++) {
             boardArr[i] = Board.getTile(b, i);
         }
+        nextMoveNumber = nextMove[gameId];
     }
 
     // =============================================================//
@@ -85,11 +88,17 @@ contract Monad2048 {
 
         // Check: game has valid board transformations.
         for (uint256 i = 1; i < 4; i++) {
-            require(Board.validateTransformation(boards[i - 1], boards[i]), GameBoardInvalid());
+            require(
+                Board.validateTransformation(boards[i - 1], boards[i], uint256(keccak256(abi.encodePacked(gameId, i)))),
+                GameBoardInvalid()
+            );
         }
 
         // Reserve game for player.
         gameFor[gameId] = player;
+
+        // Store seed for game.
+        nextMove[gameId] = 4;
 
         // Mark the game-start as played.
         gameHashOf[hashedBoards] = gameId;
@@ -113,10 +122,18 @@ contract Monad2048 {
         require(player == gameFor[gameId], GamePlayerInvalid());
 
         // Check: playing a valid move.
-        require(Board.validateTransformation(latestBoard[gameId], resultBoard), GameBoardInvalid());
+        require(
+            Board.validateTransformation(
+                latestBoard[gameId], resultBoard, uint256(keccak256(abi.encodePacked(gameId, nextMove[gameId])))
+            ),
+            GameBoardInvalid()
+        );
 
-        // Store updated board.
+        // Update board.
         latestBoard[gameId] = resultBoard;
+
+        // Update move count.
+        nextMove[gameId]++;
 
         emit NewMove(player, gameId, Board.getMove(resultBoard), resultBoard);
     }
