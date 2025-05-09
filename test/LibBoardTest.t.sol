@@ -13,14 +13,11 @@ contract LibBoardTest is Test {
     }
 
     // Helper function to print values for debugging.
-    function boardArrayToBits(uint8[16] memory b) internal pure returns (uint256) {
-        uint256 result = 0;
-
+    function boardArrayToBits(uint8[16] memory b) internal pure returns (uint128 result) {
         for (uint8 i = 0; i < 16; i++) {
-            result = (result << 8) | b[i]; // Shift first, then OR
+            result <<= 8;
+            result |= b[i];
         }
-
-        return result;
     }
 
     function testValidateStartBoard() public {
@@ -104,9 +101,7 @@ contract LibBoardTest is Test {
         }
         expectedResultDown[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
-        uint256 resultWithMove = boardArrayToBits(expectedResultDown) | (0x01 << 248);
-
-        assertTrue(Board.validateTransformation(boardArrayToBits(board), resultWithMove, seed));
+        assertTrue(Board.validateTransformation(boardArrayToBits(board), 0x01, boardArrayToBits(expectedResultDown), seed));
     }
 
     function testGameOver() public {
@@ -162,7 +157,7 @@ contract LibBoardTest is Test {
         }
         expectedResultUp[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
-        uint256 result = Board.processMove(boardArrayToBits(board1), Board.UP, seed);
+        uint128 result = Board.processMove(boardArrayToBits(board1), Board.UP, seed);
         assertEq(boardArrayToBits(expectedResultUp), result);
     }
 
