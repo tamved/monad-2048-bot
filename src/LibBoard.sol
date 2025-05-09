@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {console} from "lib/forge-std/src/Test.sol";
+
 library Board {
     // =============================================================//
     //                            ERRORS                            //
@@ -33,9 +35,9 @@ library Board {
         rseed = uint256(keccak256(abi.encodePacked(rseed)));
 
         // Get second tile to populate.
-        uint256 pos2 = rseed % 16;
-        while (pos2 == pos1) {
-            pos2 = (pos2 + 1) % 16;
+        uint256 pos2 = rseed % 15;
+        if (pos2 >= pos1) {
+            pos2++;
         }
 
         for (uint8 i = 0; i < 16; i++) {
@@ -83,238 +85,83 @@ library Board {
         require(move < 4, MoveInvalid());
 
         // Perform transformation on board to get resultant
-        if (move == UP) {
-            result = processMoveUp(board);
-        } else if (move == DOWN) {
-            result = processMoveDown(board);
-        } else if (move == RIGHT) {
-            result = processMoveRight(board);
-        } else if (move == LEFT) {
-            result = processMoveLeft(board);
-        }
+        result = processMove(board, move <= DOWN, move % 2 == 0);
 
         // Check: the move is playable.
         require((board << 128) != (result << 128), MoveInvalid());
 
-        uint256 emptySlots = 0;
-        for (uint8 i = 0; i < 16; i++) {
-            if (getTile(result, i) == 0) {
-                emptySlots++;
+        uint256 slotMask = 0xFF000000000000000000000000000000;
+
+        uint256 emptyIndices;
+        uint256 emptySlots;
+        uint256 index;
+
+        while (slotMask != 0) {
+            if (result & slotMask == 0) {
+                emptyIndices |= index << (8 * emptySlots++);
             }
+            slotMask >>= 8;
+            index++;
         }
 
         if (emptySlots > 0) {
-            // Generate pseudo-random seed.
-            uint8[] memory emptyIndices = new uint8[](emptySlots);
-            uint256 idx = 0;
-            for (uint8 i = 0; i < 16; i++) {
-                if (getTile(result, i) == 0) {
-                    emptyIndices[idx] = i;
-                    idx++;
-                }
-            }
-
             // Set a 2 (90% probability) or a 4 (10% probability) on the randomly chosen tile.
-            result = setTile(result, emptyIndices[seed % emptySlots], (seed % 100) > 90 ? 2 : 1);
+            uint8 tile = uint8((emptyIndices >> (8 * (seed % emptySlots))) & 0xFF);
+            result = setTile(result, tile, (seed % 100) > 90 ? 2 : 1);
         }
 
         return (result << 128) >> 128;
     }
 
-    function processMoveUp(uint256 board) public pure returns (uint256 result) {
-        for (uint8 col = 0; col < 4; col++) {
-            // Extract column
-            uint8[4] memory column;
-            for (uint8 row = 0; row < 4; row++) {
-                column[row] = getTile(board, row * 4 + col);
-            }
+    function processMove(uint256 board, bool isVertical, bool isLeft) public pure returns (uint256 result) {
+        uint256 shift = 0;
+        board &= type(uint128).max;
+        uint256 extractMask = isVertical ? 0x000000FF000000FF000000FF000000FF : 0xFFFFFFFF;
+        for (uint256 i = 0; i < 4; i++) {
+            uint256 compressed = compress(extractMask & board, isVertical, isLeft);
+            uint256 merged = merge(compressed, isVertical, isLeft);
 
-            // Compress (move non-zero tiles up)
-            uint8[4] memory compressedColumn;
-            uint8 targetIndex = 0;
-            for (uint8 row = 0; row < 4; row++) {
-                if (column[row] != 0) {
-                    compressedColumn[targetIndex++] = column[row];
-                }
-            }
+            result |= (merged << shift);
+            shift += isVertical ? 8 : 32;
 
-            // Merge
-            for (uint8 row = 0; row < 3; row++) {
-                if (compressedColumn[row] != 0 && compressedColumn[row] == compressedColumn[row + 1]) {
-                    compressedColumn[row]++;
-                    compressedColumn[row + 1] = 0;
-                }
-            }
-
-            // Re-compress after merging
-            uint8[4] memory finalColumn;
-            targetIndex = 0;
-            for (uint8 row = 0; row < 4; row++) {
-                if (compressedColumn[row] != 0) {
-                    finalColumn[targetIndex++] = compressedColumn[row];
-                }
-            }
-
-            // Update board with transformed column
-            for (uint8 row = 0; row < 4; row++) {
-                board = setTile(board, row * 4 + col, finalColumn[row]);
-            }
+            board >>= isVertical ? 8 : 32;
         }
-
-        return board;
     }
 
-    function processMoveDown(uint256 board) public pure returns (uint256 result) {
-        for (uint8 col = 0; col < 4; col++) {
-            // Extract column in reverse order
-            uint8[4] memory column;
-            for (uint8 row = 0; row < 4; row++) {
-                column[row] = getTile(board, row * 4 + col);
+    function compress(uint256 data, bool isVertical, bool isLeft) internal pure returns (uint256 compressed) {
+        uint256 shift = isVertical ? 32 : 8;
+        uint256 mask = isLeft ? (isVertical ? 0x000000FF000000000000000000000000 : 0xFF000000) : 0xFF;
+        uint256 reminderMask = isVertical ? 0x000000FF000000FF000000FF000000FF : 0xFFFFFFFF;
+        while (mask != 0 && data != 0) {
+            while (data & reminderMask > 0 && data & mask == 0) {
+                data = isLeft ? data << shift : data >> shift;
             }
-
-            // Reverse the column
-            uint8[4] memory reversedColumn;
-            for (uint8 row = 0; row < 4; row++) {
-                reversedColumn[row] = column[3 - row];
-            }
-
-            // Compress (move non-zero tiles up in reversed column)
-            uint8[4] memory compressedColumn;
-            uint8 targetIndex = 0;
-            for (uint8 row = 0; row < 4; row++) {
-                if (reversedColumn[row] != 0) {
-                    compressedColumn[targetIndex++] = reversedColumn[row];
-                }
-            }
-
-            // Merge
-            for (uint8 row = 0; row < 3; row++) {
-                if (compressedColumn[row] != 0 && compressedColumn[row] == compressedColumn[row + 1]) {
-                    compressedColumn[row]++;
-                    compressedColumn[row + 1] = 0;
-                }
-            }
-
-            // Re-compress after merging
-            uint8[4] memory finalColumn;
-            targetIndex = 0;
-            for (uint8 row = 0; row < 4; row++) {
-                if (compressedColumn[row] != 0) {
-                    finalColumn[targetIndex++] = compressedColumn[row];
-                }
-            }
-
-            // Reverse back to downward direction
-            uint8[4] memory downColumn;
-            for (uint8 row = 0; row < 4; row++) {
-                downColumn[row] = finalColumn[3 - row];
-            }
-
-            // Update board with transformed column
-            for (uint8 row = 0; row < 4; row++) {
-                board = setTile(board, row * 4 + col, downColumn[row]);
-            }
+            compressed |= data & mask;
+            mask = isLeft ? mask >> shift : mask << shift;
         }
-
-        return board;
     }
 
-    function processMoveRight(uint256 board) public pure returns (uint256 result) {
-        for (uint8 row = 0; row < 4; row++) {
-            // Extract row
-            uint8[4] memory rowTiles;
-            for (uint8 col = 0; col < 4; col++) {
-                rowTiles[col] = getTile(board, row * 4 + col);
-            }
+    function merge(uint256 compressed, bool isVertical, bool isLeft) internal pure returns (uint256 merged) {
+        uint256 shift = isVertical ? 32 : 8;
 
-            // Reverse the row
-            uint8[4] memory reversedRow;
-            for (uint8 col = 0; col < 4; col++) {
-                reversedRow[col] = rowTiles[3 - col];
-            }
+        uint256 mask = isLeft ? (isVertical ? 0x000000FF000000000000000000000000 : 0xFF000000) : 0xFF;
+        uint256 reminderMask = isVertical ? 0x000000FF000000FF000000FF000000FF : 0xFFFFFFFF;
+        uint256 frontMask = isLeft ? mask >> shift : mask << shift;
+        uint256 addition = isLeft ? (isVertical ? 0x00000001000000000000000000000000 : 0x01000000) : 0x01;
 
-            // Compress (move non-zero tiles up in reversed row)
-            uint8[4] memory compressedRow;
-            uint8 targetIndex = 0;
-            for (uint8 col = 0; col < 4; col++) {
-                if (reversedRow[col] != 0) {
-                    compressedRow[targetIndex++] = reversedRow[col];
-                }
+        while (reminderMask & compressed != 0) {
+            uint256 front = isLeft ? (compressed & frontMask) << shift : (compressed & frontMask) >> shift;
+            if (compressed & mask == front) {
+                compressed = isLeft ? compressed << shift : compressed >> shift;
+                compressed += addition;
             }
+            merged |= (compressed & mask);
 
-            // Merge
-            for (uint8 col = 0; col < 3; col++) {
-                if (compressedRow[col] != 0 && compressedRow[col] == compressedRow[col + 1]) {
-                    compressedRow[col]++;
-                    compressedRow[col + 1] = 0;
-                }
-            }
-
-            // Re-compress after merging
-            uint8[4] memory finalRow;
-            targetIndex = 0;
-            for (uint8 col = 0; col < 4; col++) {
-                if (compressedRow[col] != 0) {
-                    finalRow[targetIndex++] = compressedRow[col];
-                }
-            }
-
-            // Reverse back to right direction
-            uint8[4] memory rightRow;
-            for (uint8 col = 0; col < 4; col++) {
-                rightRow[col] = finalRow[3 - col];
-            }
-
-            // Update board with transformed row
-            for (uint8 col = 0; col < 4; col++) {
-                board = setTile(board, row * 4 + col, rightRow[col]);
-            }
+            mask = isLeft ? mask >> shift : mask << shift;
+            frontMask = isLeft ? frontMask >> shift : frontMask << shift;
+            addition = isLeft ? addition >> shift : addition << shift;
+            reminderMask = isLeft ? reminderMask >> shift : reminderMask << shift;
         }
-
-        return board;
-    }
-
-    function processMoveLeft(uint256 board) public pure returns (uint256 result) {
-        for (uint8 row = 0; row < 4; row++) {
-            // Extract row
-            uint8[4] memory rowTiles;
-            for (uint8 col = 0; col < 4; col++) {
-                rowTiles[col] = getTile(board, row * 4 + col);
-            }
-
-            // Compress (move non-zero tiles up)
-            uint8[4] memory compressedRow;
-            uint8 targetIndex = 0;
-            for (uint8 col = 0; col < 4; col++) {
-                if (rowTiles[col] != 0) {
-                    compressedRow[targetIndex++] = rowTiles[col];
-                }
-            }
-
-            // Merge
-            for (uint8 col = 0; col < 3; col++) {
-                if (compressedRow[col] != 0 && compressedRow[col] == compressedRow[col + 1]) {
-                    compressedRow[col]++;
-                    compressedRow[col + 1] = 0;
-                }
-            }
-
-            // Re-compress after merging
-            uint8[4] memory finalRow;
-            targetIndex = 0;
-            for (uint8 col = 0; col < 4; col++) {
-                if (compressedRow[col] != 0) {
-                    finalRow[targetIndex++] = compressedRow[col];
-                }
-            }
-
-            // Update board with transformed row
-            for (uint8 col = 0; col < 4; col++) {
-                board = setTile(board, row * 4 + col, finalRow[col]);
-            }
-        }
-
-        return board;
     }
 
     function getTile(uint256 board, uint8 pos) public pure returns (uint8) {
