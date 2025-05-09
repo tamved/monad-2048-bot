@@ -14,7 +14,7 @@ From the [2048 Wikipedia](<https://en.wikipedia.org/wiki/2048_(video_game)>) pag
 
 ## Deployments
 
-`Monad2048.sol` is deployed on Monad testnet: [0xd58A47b87A49D260A437693D330dFb59d379B74a](https://testnet.monadexplorer.com/address/0xd58A47b87A49D260A437693D330dFb59d379B74a).
+`Monad2048.sol` is deployed on Monad testnet: [0x01BCCDccDEcAFe3F357e8DF9aE5b9aF002939D1c](https://testnet.monadexplorer.com/address/0x01BCCDccDEcAFe3F357e8DF9aE5b9aF002939D1c).
 
 ## Development
 
