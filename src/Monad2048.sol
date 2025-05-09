@@ -35,14 +35,21 @@ contract Monad2048 {
     //                           STORAGE                            //
     // =============================================================//
 
-    /// @notice Mapping from game ID to the player.
-    mapping(bytes32 gameId => address player) public gameFor;
     /// @notice Mapping from game ID to the latest board state.
     mapping(bytes32 gameId => uint256 board) public latestBoard;
     /// @notice Mapping from game ID to the move count of the game.
     mapping(bytes32 gameId => uint256 nextMove) public nextMove;
     /// @notice Mapping from a hash of start position plus first 3 moves to game ID.
     mapping(bytes32 gameHash => bytes32 gameId) public gameHashOf;
+
+    // =============================================================//
+    //                          MODIFIERS                           //
+    // =============================================================//
+
+    modifier correctGameId(address player, bytes32 gameId) {
+        require(player == address(uint160(uint256(gameId) >> 96)), GamePlayerInvalid());
+        _;
+    }
 
     // =============================================================//
     //                             VIEW                             //
@@ -72,12 +79,11 @@ contract Monad2048 {
      * @param boards An ordered series of a start board and the result boards
      *               of the first three moves.
      */
-    function startGame(bytes32 gameId, uint256[4] calldata boards) external {
+    function startGame(bytes32 gameId, uint256[4] calldata boards) external correctGameId(msg.sender, gameId) {
         // Get player.
         address player = msg.sender;
 
-        // Check: provided game ID is unused.
-        require(gameFor[gameId] == address(0), GameIdUsed());
+        require(latestBoard[gameId] == 0, GameIdUsed());
 
         // Check: this exact sequence of boards has not been played.
         bytes32 hashedBoards = keccak256(abi.encodePacked(boards));
@@ -93,9 +99,6 @@ contract Monad2048 {
                 GameBoardInvalid()
             );
         }
-
-        // Reserve game for player.
-        gameFor[gameId] = player;
 
         // Store seed for game.
         nextMove[gameId] = 4;
@@ -114,12 +117,9 @@ contract Monad2048 {
      * @param gameId The unique ID of the game.
      * @param resultBoard The result of applying a move on the latest board.
      */
-    function play(bytes32 gameId, uint256 resultBoard) external {
+    function play(bytes32 gameId, uint256 resultBoard) external correctGameId(msg.sender, gameId) {
         // Get player.
         address player = msg.sender;
-
-        // Check: provided game is reserved for the player.
-        require(player == gameFor[gameId], GamePlayerInvalid());
 
         // Check: playing a valid move.
         require(

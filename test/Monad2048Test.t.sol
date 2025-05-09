@@ -22,7 +22,8 @@ contract Monad2048Test is Test {
 
     function testShowcase() public {
         // Come up with a game ID.
-        bytes32 gameId = keccak256(abi.encodePacked(player, "random"));
+        bytes32 gameId =
+            bytes32((uint256(uint160(player)) << 96) + (uint256(keccak256(abi.encodePacked(player, "random"))) >> 160));
 
         // Play 3 moves.
         uint256 startBoard = Board.getStartPosition(bytes32("random"));
@@ -43,14 +44,12 @@ contract Monad2048Test is Test {
         uint256[4] memory boards = [startBoard, board1, board2, board3];
         bytes32 gameHash = keccak256(abi.encodePacked(boards));
 
-        assertEq(game.gameFor(gameId), address(0));
         assertEq(game.gameHashOf(gameHash), bytes32(0));
 
         // Start game by revealing commited boards.
         vm.prank(player);
         game.startGame(gameId, boards);
 
-        assertEq(game.gameFor(gameId), player);
         assertEq(game.gameHashOf(gameHash), gameId);
 
         assertEq(game.latestBoard(gameId), board3);
