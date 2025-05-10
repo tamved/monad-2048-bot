@@ -47,7 +47,8 @@ contract Monad2048Test is Test {
         assertEq(game.latestBoard(gameId), boards[3]);
 
         // Play move.
-        uint128 board4 = Board.processMove(boards[3], Board.LEFT, uint256(keccak256(abi.encodePacked(gameId, uint256(4)))));
+        uint128 board4 =
+            Board.processMove(boards[3], Board.LEFT, uint256(keccak256(abi.encodePacked(gameId, uint256(4)))));
 
         // Submit move for validation.
         vm.prank(player);
@@ -81,18 +82,22 @@ contract Monad2048Test is Test {
         uint256 movesTotal = 4;
         uint8[4] memory playMoves = [Board.DOWN, Board.LEFT, Board.UP, Board.RIGHT];
         bool gameOver;
-        while(!gameOver) {
+        while (!gameOver) {
             assertEq(game.latestBoard(gameId), boardState);
 
             uint256 i = 0;
 
-            // find move            
-            while (i < 4 && boardState == Board.processMove(boardState, playMoves[i] <= Board.DOWN, playMoves[i] % 2 == 0)) {
+            // find move
+            while (
+                i < 4 && boardState == Board.processMove(boardState, playMoves[i] <= Board.DOWN, playMoves[i] % 2 == 0)
+            ) {
                 i++;
             }
-            
-            if(i < 4) {
-                boardState = Board.processMove(boardState, playMoves[i], uint256(keccak256(abi.encodePacked(gameId, movesTotal++))));
+
+            if (i < 4) {
+                boardState = Board.processMove(
+                    boardState, playMoves[i], uint256(keccak256(abi.encodePacked(gameId, movesTotal++)))
+                );
                 vm.prank(player);
                 game.play(gameId, playMoves[i], boardState);
             } else {

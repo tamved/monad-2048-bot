@@ -57,8 +57,7 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory badBoard1 = [0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
 
-        vm.expectRevert(Board.BoardStartInvalid.selector);
-        Board.validateStartPosition(boardArrayToBits(badBoard1));
+        assertEq(Board.validateStartPosition(boardArrayToBits(badBoard1)), false);
 
         /**
          * [0,0,0,0]
@@ -68,8 +67,7 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory badBoard2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-        vm.expectRevert(Board.BoardStartInvalid.selector);
-        Board.validateStartPosition(boardArrayToBits(badBoard2));
+        assertEq(Board.validateStartPosition(boardArrayToBits(badBoard2)), false);
     }
 
     function testValidateTransformation() public pure {
@@ -101,7 +99,9 @@ contract LibBoardTest is Test {
         }
         expectedResultDown[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
-        assertTrue(Board.validateTransformation(boardArrayToBits(board), 0x01, boardArrayToBits(expectedResultDown), seed));
+        assertTrue(
+            Board.validateTransformation(boardArrayToBits(board), 0x01, boardArrayToBits(expectedResultDown), seed)
+        );
     }
 
     function testGameOver() public {

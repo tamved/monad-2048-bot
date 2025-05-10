@@ -91,7 +91,10 @@ contract Monad2048 {
      * @param boards An ordered series of a start board and the result boards
      *               of the first three moves.
      */
-    function startGame(bytes32 gameId, uint128[4] calldata boards, uint8[3] calldata moves) external correctGameId(msg.sender, gameId) {
+    function startGame(bytes32 gameId, uint128[4] calldata boards, uint8[3] calldata moves)
+        external
+        correctGameId(msg.sender, gameId)
+    {
         require(state[gameId].board == 0, GameIdUsed());
 
         // Check: this exact sequence of boards has not been played.
@@ -104,7 +107,9 @@ contract Monad2048 {
         // Check: game has valid board transformations.
         for (uint256 i = 1; i < 4; i++) {
             require(
-                Board.validateTransformation(boards[i - 1], moves[i - 1], boards[i], uint256(keccak256(abi.encodePacked(gameId, i)))),
+                Board.validateTransformation(
+                    boards[i - 1], moves[i - 1], boards[i], uint256(keccak256(abi.encodePacked(gameId, i)))
+                ),
                 GameBoardInvalid()
             );
         }
@@ -128,7 +133,10 @@ contract Monad2048 {
         // Check: playing a valid move.
         require(
             Board.validateTransformation(
-                latestState.board, move, resultBoard, uint256(keccak256(abi.encodePacked(gameId, uint256(latestState.nextMove))))
+                latestState.board,
+                move,
+                resultBoard,
+                uint256(keccak256(abi.encodePacked(gameId, uint256(latestState.nextMove))))
             ),
             GameBoardInvalid()
         );

@@ -9,9 +9,6 @@ library Board {
     // =============================================================//
 
     error MoveInvalid();
-    error UnexpectedBits();
-    error BoardStartInvalid();
-    error BoardTransformInvalid();
 
     // =============================================================//
     //                          CONSTANTS                           //
@@ -29,22 +26,16 @@ library Board {
     function getStartPosition(bytes32 seed) public pure returns (uint128 position) {
         // Generate pseudo-random seed and get first tile to populate.
         uint256 rseed = uint256(keccak256(abi.encodePacked(seed)));
-        uint256 pos1 = rseed % 16;
-
-        // Re-hash seed
-        rseed = uint256(keccak256(abi.encodePacked(rseed)));
+        uint8 pos1 = uint8(rseed % 16);
+        rseed >>= 16;
 
         // Get second tile to populate.
-        uint256 pos2 = rseed % 15;
+        uint8 pos2 = uint8(rseed % 15);
         if (pos2 >= pos1) {
             pos2++;
         }
 
-        for (uint8 i = 0; i < 16; i++) {
-            if (i == pos1 || i == pos2) {
-                position = setTile(position, i, (rseed % 100) > 90 ? 2 : 1);
-            }
-        }
+        position = setTile(setTile(position, pos2, (rseed % 100) > 90 ? 2 : 1), pos1, (rseed % 100) > 90 ? 2 : 1);
     }
 
     // =============================================================//
@@ -52,21 +43,29 @@ library Board {
     // =============================================================//
 
     function validateStartPosition(uint128 board) public pure returns (bool) {
-        uint256 count;
-        for (uint8 i = 0; i < 16; i++) {
-            // Get value at tile.
-            uint8 pow = getTile(board, i);
-            // Check: tile value is less than 2^3.
-            require(pow < 3, BoardStartInvalid());
-            // Update tile count.
-            if (pow > 0) count++;
-        }
-        require(count == 2, BoardStartInvalid());
+        uint128 mask = 0x03030303030303030303030303030303;
 
-        return true;
+        // any bit except last two bits in a slot cannot be active
+        // also, both of the last two cannot be active at the same time
+        if (board & ~mask != 0 || board & (board >> 1) != 0) {
+            return false;
+        }
+
+        uint256 count;
+        while (board != 0) {
+            // eliminate last active bit
+            board &= board - 1;
+            count++;
+        }
+
+        return count == 2;
     }
 
-    function validateTransformation(uint128 prevBoard, uint8 move, uint128 nextBoard, uint256 seed) public pure returns (bool) {
+    function validateTransformation(uint128 prevBoard, uint8 move, uint128 nextBoard, uint256 seed)
+        public
+        pure
+        returns (bool)
+    {
         return processMove(prevBoard, move, seed) == nextBoard;
     }
 
