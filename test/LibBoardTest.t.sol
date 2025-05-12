@@ -13,14 +13,11 @@ contract LibBoardTest is Test {
     }
 
     // Helper function to print values for debugging.
-    function boardArrayToBits(uint8[16] memory b) internal pure returns (uint256) {
-        uint256 result = 0;
-
+    function boardArrayToBits(uint8[16] memory b) internal pure returns (uint128 result) {
         for (uint8 i = 0; i < 16; i++) {
-            result = (result << 8) | b[i]; // Shift first, then OR
+            result <<= 8;
+            result |= b[i];
         }
-
-        return result;
     }
 
     function testValidateStartBoard() public {
@@ -60,8 +57,7 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory badBoard1 = [0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
 
-        vm.expectRevert(Board.BoardStartInvalid.selector);
-        Board.validateStartPosition(boardArrayToBits(badBoard1));
+        assertEq(Board.validateStartPosition(boardArrayToBits(badBoard1)), false);
 
         /**
          * [0,0,0,0]
@@ -71,8 +67,7 @@ contract LibBoardTest is Test {
          */
         uint8[16] memory badBoard2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-        vm.expectRevert(Board.BoardStartInvalid.selector);
-        Board.validateStartPosition(boardArrayToBits(badBoard2));
+        assertEq(Board.validateStartPosition(boardArrayToBits(badBoard2)), false);
     }
 
     function testValidateTransformation() public pure {
@@ -104,9 +99,9 @@ contract LibBoardTest is Test {
         }
         expectedResultDown[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
-        uint256 resultWithMove = boardArrayToBits(expectedResultDown) | (0x01 << 248);
-
-        assertTrue(Board.validateTransformation(boardArrayToBits(board), resultWithMove, seed));
+        assertTrue(
+            Board.validateTransformation(boardArrayToBits(board), 0x01, boardArrayToBits(expectedResultDown), seed)
+        );
     }
 
     function testGameOver() public {
@@ -162,7 +157,7 @@ contract LibBoardTest is Test {
         }
         expectedResultUp[emptyIndices[seed % emptyIndices.length]] = (seed % 100) > 90 ? 2 : 1;
 
-        uint256 result = Board.processMove(boardArrayToBits(board1), Board.UP, seed);
+        uint128 result = Board.processMove(boardArrayToBits(board1), Board.UP, seed);
         assertEq(boardArrayToBits(expectedResultUp), result);
     }
 
@@ -538,4 +533,38 @@ contract LibBoardTest is Test {
         uint256 result = Board.processMove(boardArrayToBits(board1), Board.LEFT, seed);
         assertEq(boardArrayToBits(expectedResultLeft), result);
     }
+
+    function testCompressRow() public pure {
+        assertEq(Board.compress(0x00010001, false, true), 0x01010000);
+        assertEq(Board.compress(0x00020101, false, true), 0x02010100);
+        assertEq(Board.compress(0x02010201, false, true), 0x02010201);
+        assertEq(Board.compress(0x00010001, false, false), 0x00000101);
+        assertEq(Board.compress(0x00020101, false, false), 0x00020101);
+        assertEq(Board.compress(0x02010201, false, false), 0x02010201);
+        assertEq(Board.compress(0, false, true), 0);
+        assertEq(Board.compress(0, false, false), 0);
+    }
+
+    function testMergeRowTiles() public pure {
+        assertEq(Board.merge(0x01010000, false, true), 0x02000000);
+        assertEq(Board.merge(0x02010100, false, true), 0x02020000);
+        assertEq(Board.merge(0x01000000, false, true), 0x01000000);
+        assertEq(Board.merge(0x00000101, false, false), 0x00000002);
+        assertEq(Board.merge(0x00020101, false, false), 0x00000202);
+        assertEq(Board.merge(0x00000001, false, false), 0x00000001);
+        assertEq(Board.merge(0, false, true), 0);
+        assertEq(Board.merge(0, false, false), 0);
+    }
+
+    function testCompressColumn() public pure {
+        assertEq(Board.compress(0x00000001000000000000000000000001, true, true), 0x00000001000000010000000000000000);
+        assertEq(Board.compress(0x00000001000000000000000100000000, true, false), 0x00000000000000000000000100000001);
+    }
+
+    function testMergeColumnTiles() public pure {
+        assertEq(Board.merge(0x00000001000000010000000000000000, true, true), 0x00000002000000000000000000000000);
+        assertEq(Board.merge(0x00000000000000000000000100000001, true, false), 0x00000000000000000000000000000002);
+    }
+
+    //0x000000FF000000FF000000FF000000FF
 }
