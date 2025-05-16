@@ -90,3 +90,5 @@ Game strategy analysis
 
 Use responsibly and in accordance with Monad testnet policies.
 
+Donate: 0x78b1a5612044ec6e183a3e7f90cd891a0bedc160
+
