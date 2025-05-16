@@ -1,62 +1,92 @@
-# Play 2048 on Monad
+# 2048 Bot for Monad Blockchain Stress Testing
 
-**Check out a full writeup of how we built this [here](https://blog.monad.xyz/blog/build-2048).**
 
-Smart contracts that let you play a game of 2048 entirely on-chain. The game is deployed on [Monad testnet](https://testnet.monad.xyz/) to showcase how Monad is well suited for building fast paced games with a high volume of interactions.
+An automated bot that plays 2048 at high speed while generating blockchain transactions on [Monad's 2048 implementation](https://github.com/monad-developers/2048-contracts). Designed for stress testing the Monad blockchain through continuous game interactions.
 
-### About the game
+## Features
 
-From the [2048 Wikipedia](<https://en.wikipedia.org/wiki/2048_(video_game)>) page:
+- 🚀 **High-speed gameplay** with 50ms move interval
+- 🧠 **AI-powered moves** using Expectimax algorithm with:
+  - Transposition table for memoization
+  - Configurable search depth (default: 5)
+  - Sophisticated board evaluation heuristics
+- ⛓️ **Automatic transaction generation** with each move
+- ⚙️ Customizable weights for board evaluation metrics
+- 📊 Real-time move statistics and error handling
 
--   2048 is a single-player sliding tile puzzle video game.
--   2048 is played on a plain 4×4 grid, with numbered tiles that slide when a player moves them using the four arrow keys.
--   The game begins with two tiles already in the grid, having a value of either 2 or 4, and another such tile appears in a random empty space after each turn. - Tiles with a value of 2 appear 90% of the time, and tiles with a value of 4 appear 10% of the time.
--   Tiles slide as far as possible in the chosen direction until they are stopped by either another tile or the edge of the grid. If two tiles of the same number collide while moving, they will merge into a tile with the total value of the two tiles that collided.
--   The resulting tile cannot merge with another tile again in the same move.
+## Installation
 
-## Deployments
+1. Navigate to [2048.monad.xyz](https://2048.monad.xyz/)
+2. Open browser developer console (F12)
+3. Paste the entire contents of `bot.js` into the console and press Enter
 
-`Monad2048.sol` is deployed on Monad testnet: [0xe0FA8195AE92b9C473c0c0c12c2D6bCbd245De47](https://testnet.monadexplorer.com/address/0xe0FA8195AE92b9C473c0c0c12c2D6bCbd245De47).
+## Usage
 
-## Development
+The bot starts automatically after injection. Console commands:
+```javascript
+// Pause the bot
+isRunning = false;
 
-This is a Foundry project. You can find installation instructions for foundry, [here](https://book.getfoundry.sh/getting-started/installation). Clone the repository and run the following commands:
+// Resume the bot
+isRunning = true;
 
-### Install
-
-```shell
-$ forge install
+// Reset move counter
+moveCount = 0;
 ```
 
-### Build
+Configuration (Edit in bot.js)
 
-```shell
-$ forge build
+```javascript
+const MOVE_INTERVAL = 50;    // Time between moves (ms)
+const SEARCH_DEPTH = 5;      // AI lookahead depth
+
+const WEIGHTS = {            // Board evaluation weights
+  empty: 15,
+  smoothness: 1.5,
+  monotonicity: 2.0,
+  maxTile: 3.0,
+  position: 4.0,
+  levelDifference: 1.2,
+  isolation: 2.5,
+  adjDiff: -0.7
+};
+
 ```
 
-### Test
+Technical Details
+Algorithm
+Expectimax search with alpha-beta pruning
 
-```shell
-$ forge test
-```
+Board state hashing for efficient memoization
 
-### Format
+Optimized move simulation with tile merging logic
 
-```shell
-$ forge fmt
-```
+Key Heuristics
+Empty cell optimization
 
-## Documentation
+Tile position weighting matrix
 
-The `Monad2048.sol` smart contract contains the API to play a game of 2048.
+Smoothness and monotonicity calculations
 
--   `startGame`: Starts a new game of 2048 for a player (`msg.sender`). The player reveals and reserves the first 4 boards of the game and the contract validates that this is a legal game of 2048.
--   `play`: Lets a player make a move for a game by providing the game's session ID and the result board or applying a move (UP, DOWN, LEFT or RIGHT) on the latest board of the game. The contract then validates that the player has made a valid move (board transformation).
+Adjacent tile difference penalties
 
-The `LiBoard` library implements the logic of board transformations, and other helper functions for extracting information about a given board position.
+Maximum tile value prioritization
 
-The contract has no permissions or privileged actors.
+Stress Testing Parameters
+Generates transaction every 50ms (20 TPS per instance)
 
-## Feedback
+Maintains game state consistency through smart contract interactions
 
-Please open issues or PRs on this repositories for any feedback.
+Tests blockchain throughput with continuous state updates
+
+Disclaimer
+This bot is intended for:
+
+Educational purposes
+
+Blockchain stress testing
+
+Game strategy analysis
+
+Use responsibly and in accordance with Monad testnet policies.
+
